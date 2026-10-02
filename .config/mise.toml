@@ -1,0 +1,8 @@
+[tools]
+go = "1.27.1"
+"conda:clang-format" = "21.1.8"
+
+[env]
+CGO_ENABLED = "1"
+# Use Apple's compiler/SDK for the native bridge, independently of LLVM formatting.
+CC = "clang"

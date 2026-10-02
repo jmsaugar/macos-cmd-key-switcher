@@ -1,6 +1,25 @@
 # CmdKeySwitcher
 
-A Go macOS menu bar app with a small native Cocoa/IOKit bridge. No external Go dependencies. Requires macOS, Go 1.23 or later, and Xcode Command Line Tools (`xcode-select --install`).
+A Go macOS menu bar app with a small native Cocoa/IOKit bridge. No external Go dependencies. Requires macOS, mise, and Xcode Command Line Tools (`xcode-select --install`). `go.mod` declares Go 1.23 as the minimum language/toolchain version; development uses the exact Go version in `.config/mise.toml`.
+
+Application source and tests live in `src/`, including the Go code, Objective-C bridge, and app bundle metadata in `src/Info.plist`. `go.mod` stays at the repository root; build and tooling commands run from that root.
+
+Development tools are pinned in `.config/mise.toml` and `.config/mise.lock` for Apple Silicon and Intel Macs. The formatter uses mise's Conda backend, which installs its supporting packages in mise-managed directories; this is development tooling, not an application dependency. Apple Clang and the macOS SDK come separately from Command Line Tools or Xcode and are not installed or pinned by mise. Builds use Apple Clang from the selected developer tools, not the formatter's LLVM libraries.
+
+```sh
+mise trust .config/mise.toml
+make setup
+make format
+make check
+make test
+make build
+```
+
+`make format` updates Go and native source formatting. `make check` verifies formatting, runs Go vet, checks shell/plist syntax, and runs Clang's static analyzer. `make test` runs tests; `make build` produces the local app bundle. These commands do not launch or install the app or modify keyboard mappings. Analyzer output is saved under `build/`. `make setup` uses Bash to read the tool-name column from `mise ls --local --no-header` and pass the project tool names to `mise install --locked`. Tool names are not duplicated in the Makefile, and unrelated globally configured tools are excluded. Setup stops if discovery fails or finds no tools, rather than running a bare install. To preview setup without installing tools, run `bash scripts/setup.sh --dry-run`. Make invokes Go and clang-format through `mise exec`, so shell activation is optional. Run the locked installation first; mise commands may otherwise install missing tools.
+
+To change tool versions, edit `.config/mise.toml`, run `mise lock --platform macos-arm64,macos-x64`, then `make setup`. Commit both files together. Formatting rules are committed in `src/.clang-format`; Go uses standard gofmt rules. Verify changes on macOS because the bridge depends on Cocoa and IOKit. To record the Apple toolchain used locally, run `xcrun clang --version` and `xcrun --show-sdk-version`.
+
+Install the app separately when ready:
 
 ```sh
 make test
@@ -40,13 +59,24 @@ Apple vendor ID 1452 defaults to `mac`; other external vendors default to `win`.
 
 Manual selection also saves a classification override for every currently connected external keyboard after the command succeeds. Those overrides are used on reconnect and restart. With no external keyboard, manual switching changes only `type`; startup detection still selects `mac`. After wake, the selected mapping is reapplied. If multiple external keyboards have different layouts, `win` takes precedence, and the mapping applies globally to all keyboards, including the built-in keyboard.
 
-The defaults reproduce `hidutils_commands.txt`: `win` swaps **left Command and left Option**, and `mac` maps those two keys to themselves. Right-side modifiers are unchanged. `hidutil property --set` replaces `UserKeyMapping`, so an existing mapping from another tool is overwritten.
+The mappings are defined in `src/core.go`: `win` swaps **left Command and left Option**, and `mac` maps those two keys to themselves. Right-side modifiers are unchanged. `hidutil property --set` replaces `UserKeyMapping`, so an existing mapping from another tool is overwritten.
+
+
+The exact commands are shown below for reference. Running them directly changes the active keyboard mapping. Usage IDs are decimal: `30064771298` (`0x7000000E2`) is left Option, and `30064771299` (`0x7000000E3`) is left Command.
+
+```sh
+# win mode
+/usr/bin/hidutil property --set '{"UserKeyMapping":[{"HIDKeyboardModifierMappingSrc":30064771299,"HIDKeyboardModifierMappingDst":30064771298},{"HIDKeyboardModifierMappingSrc":30064771298,"HIDKeyboardModifierMappingDst":30064771299}]}'
+
+# mac mode
+/usr/bin/hidutil property --set '{"UserKeyMapping":[{"HIDKeyboardModifierMappingSrc":30064771298,"HIDKeyboardModifierMappingDst":30064771298},{"HIDKeyboardModifierMappingSrc":30064771299,"HIDKeyboardModifierMappingDst":30064771299}]}'
+```
 
 ## Configuration
 
 The app writes `~/Library/Application Support/CmdKeySwitcher/config.json`. It updates `type` only after the HID command succeeds, and saves atomically. The HID commands run directly as `/usr/bin/hidutil property --set <mapping>` without a shell. Detection reads IORegistry device metadata and subscribes to service arrival/removal notifications, without creating HID input clients or reading keystrokes. Input Monitoring and Accessibility access are not needed for this detection path.
 
-The configuration stores only `type` and `keyboard_types`. HID mappings are constants in `core.go`; changing them requires rebuilding the app. Overrides use `vendor:product_id:serial:<URL-escaped serial>` when a nonblank HID serial number is exposed, otherwise decimal `vendor:product_id`. Detection checks the unit override first, then the model override, then the vendor default. Serial numbers are supplied by the device; the app cannot verify their uniqueness, and shared or changing serials limit unit identification. Registry IDs and USB port locations are never saved as unit identities.
+The configuration stores only `type` and `keyboard_types`. HID mappings are constants in `src/core.go`; changing them requires rebuilding the app. Overrides use `vendor:product_id:serial:<URL-escaped serial>` when a nonblank HID serial number is exposed, otherwise decimal `vendor:product_id`. Detection checks the unit override first, then the model override, then the vendor default. Serial numbers are supplied by the device; the app cannot verify their uniqueness, and shared or changing serials limit unit identification. Registry IDs and USB port locations are never saved as unit identities.
 
 ```json
 "keyboard_types": {
