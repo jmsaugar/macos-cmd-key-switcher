@@ -36,7 +36,7 @@ At startup and when IOKit reports a keyboard connecting or disconnecting, the ap
 - No external keyboards, or only Apple/Mac-classified external keyboards: `mac`.
 - Any Windows-classified external keyboard: `win`.
 
-Apple vendor ID 1452 defaults to `mac`; other external vendors default to `win`. HID metadata cannot reliably identify a third-party keyboard's key layout or Mac/Windows hardware mode. Add a device override for those keyboards. Internal keyboards are ignored using the Built-In property and SPI/i2c transport.
+Apple vendor ID 1452 defaults to `mac`; other external vendors default to `win`. HID metadata cannot reliably identify a third-party keyboard's key layout or Mac/Windows hardware mode. Add a device override for those keyboards. Internal keyboards are ignored using the Built-In property and SPI/i2c transport. Detection requires the primary HID usage to be Generic Desktop / Keyboard. Secondary keyboard collections on media/audio peripherals are excluded, even if they advertise normal keys. A composite device whose keyboard collection is secondary will also be excluded by this conservative rule.
 
 Manual selection also saves a classification override for every currently connected external keyboard after the command succeeds. Those overrides are used on reconnect and restart. With no external keyboard, manual switching changes only `type`; startup detection still selects `mac`. After wake, the selected mapping is reapplied. If multiple external keyboards have different layouts, `win` takes precedence, and the mapping applies globally to all keyboards, including the built-in keyboard.
 

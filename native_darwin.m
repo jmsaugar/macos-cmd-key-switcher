@@ -80,16 +80,11 @@ static BOOL startWatching(void) {
  return YES;
 }
 static BOOL isKeyboard(NSDictionary *properties) {
- if ([properties[@(kIOHIDPrimaryUsagePageKey)] intValue]==kHIDPage_GenericDesktop &&
-     [properties[@(kIOHIDPrimaryUsageKey)] intValue]==kHIDUsage_GD_Keyboard) return YES;
- id pairs=properties[@(kIOHIDDeviceUsagePairsKey)];
- if (![pairs isKindOfClass:[NSArray class]]) return NO;
- for (id pair in pairs) {
-  if (![pair isKindOfClass:[NSDictionary class]]) continue;
-  if ([pair[@(kIOHIDDeviceUsagePageKey)] intValue]==kHIDPage_GenericDesktop &&
-      [pair[@(kIOHIDDeviceUsageKey)] intValue]==kHIDUsage_GD_Keyboard) return YES;
- }
- return NO;
+ // Auxiliary keyboard collections can exist on media peripherals (including
+ // devices that advertise a full key range). Require the primary function
+ // to be a keyboard instead of accepting any DeviceUsagePairs entry.
+ return [properties[@(kIOHIDPrimaryUsagePageKey)] intValue]==kHIDPage_GenericDesktop &&
+        [properties[@(kIOHIDPrimaryUsageKey)] intValue]==kHIDUsage_GD_Keyboard;
 }
 char *keyboardJSON(void) {
  @autoreleasepool {
