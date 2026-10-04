@@ -8,6 +8,7 @@ var forceRefresh bool
 var readKeyboards = connectedKeyboards
 
 func keyboardChanged() {
+	refreshMenu()
 	resetRetries()
 	detectDevices()
 }
@@ -33,14 +34,11 @@ func updateDevices(devices []Keyboard) {
 	changed := signature != lastDevices
 	observedDevices = signature
 	if changed || forceRefresh {
-		target := config.Type
+		target := requestedType()
 		if changed {
 			target = detectedType(devices, config)
 		}
 		forceRefresh = false
 		automaticType(target)
-		if retryMode == "" {
-			lastDevices = signature
-		}
 	}
 }

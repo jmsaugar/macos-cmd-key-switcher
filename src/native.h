@@ -7,6 +7,7 @@ char *keyboardJSON(void);
 void updateMenu(const char *mode, const char *error);
 void scheduleRetry(double seconds);
 void cancelRetry(void);
+void notifyMappingComplete(void);
 
 // Native device notification lifecycle, shared by registry and menu implementations.
 void beginKeyboardWatching(void);

@@ -14,9 +14,13 @@ func isolateEvents(t *testing.T) {
 	oldConfig, oldLast, oldObserved, oldError := config, lastDevices, observedDevices, lastError
 	oldPath := configPath
 	oldRetries, oldMode, oldForce := retries, retryMode, forceRefresh
+	oldStart := startMapping
+	oldActive, oldPending := activeMapping, pendingMapping
 	oldRead := readKeyboards
 	oldExec, oldSchedule, oldCancel := executeMapping, scheduleAutomaticRetry, cancelAutomaticRetry
 	t.Cleanup(func() {
+		startMapping = oldStart
+		activeMapping, pendingMapping = oldActive, oldPending
 		readKeyboards = oldRead
 		config, lastDevices, observedDevices, lastError = oldConfig, oldLast, oldObserved, oldError
 		configPath = oldPath
@@ -24,6 +28,10 @@ func isolateEvents(t *testing.T) {
 		executeMapping, scheduleAutomaticRetry, cancelAutomaticRetry = oldExec, oldSchedule, oldCancel
 	})
 	readKeyboards = func() ([]Keyboard, error) { return []Keyboard{{ID: "external", Vendor: 1234}}, nil }
+	activeMapping, pendingMapping = nil, nil
+	startMapping = func(request mappingRequest) {
+		finishMapping(mappingResult{request, executeMapping(config, request.mode)})
+	}
 	config = defaults()
 	configPath = filepath.Join(t.TempDir(), "config.json")
 	lastDevices = ""

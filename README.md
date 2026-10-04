@@ -76,7 +76,7 @@ Errors appear in the menu icon's tooltip and, when installed, `~/Library/Logs/Cm
 
 ## Implementation references
 
-The native bridge uses Apple's [NSStatusBar](https://developer.apple.com/documentation/appkit/nsstatusbar) and [IOService registry notifications](https://developer.apple.com/documentation/iokit/1514362-ioserviceaddmatchingnotification). Go owns classification, configuration, command execution, and switching behavior. The UI and device callbacks stay on the main OS thread. IORegistry service arrival/removal callbacks replace periodic polling; a one-shot 250 ms debounce combines closely spaced notifications. One-shot retry timers run only after failures. Startup detection and wake checks remain in place.
+The native bridge uses Apple's [NSStatusBar](https://developer.apple.com/documentation/appkit/nsstatusbar) and [IOService registry notifications](https://developer.apple.com/documentation/iokit/1514362-ioserviceaddmatchingnotification). Go owns classification, configuration, command execution, and switching behavior. The UI and device callbacks stay on the main OS thread. HID commands run in a Go worker with a five-second timeout; completion returns to the main thread before changing state, configuration, or the menu. Only one HID command runs at a time; newer requests replace pending work, and rapid manual clicks toggle the requested mode. Superseded operations do not record manual overrides or schedule retries. IORegistry service arrival/removal callbacks replace periodic polling; a one-shot 250 ms debounce combines closely spaced notifications. One-shot retry timers run only after failures. Startup detection and wake checks remain in place.
 
 The build produces an unsigned app for local use, for the current machine's architecture. Distribution requires signing/notarization separately.
 
@@ -90,7 +90,8 @@ The app remains one Go package with a small native bridge. Responsibilities are 
 | `config.go`, `config_test.go` | Configuration defaults, validation, and atomic file persistence |
 | `keyboard.go`, `keyboard_test.go` | Device identity, remembered classifications, vendor rules, and fingerprints |
 | `detection_darwin.go` | Respond to device changes and wake; choose automatic selections |
-| `mapping.go` | Fixed modifier mappings and hidutil execution |
+| `mapping.go`, `mapping_worker_darwin.go` | Fixed mappings, background hidutil execution, and serialized requests |
+| `mapping_completion_darwin.m` | Dispatch worker completion to the main thread |
 | `switching_darwin.go`, `events_darwin_test.go` | Apply selections, save manual preferences, and coordinate UI state |
 | `retry.go`, `retry_darwin.go`, `retry_test.go` | Retry budget and automatic retry orchestration |
 | `bridge_darwin.go`, `native.h` | cgo conversions and native callbacks |
@@ -100,4 +101,4 @@ The app remains one Go package with a small native bridge. Responsibilities are 
 | `retry_darwin.m` | Main-thread one-shot retry timers |
 | `Info.plist`, `.clang-format` | Bundle metadata and native formatting rules |
 
-Go and native callbacks run on the main OS thread. Each native source is compiled into the same executable; no separate runtime services or libraries were added.
+Application state and native callbacks run on the main OS thread; HID command execution runs in a Go worker. Each native source is compiled into the same executable; no separate runtime services or libraries were added.

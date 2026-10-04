@@ -51,3 +51,8 @@ func appWake() { keyboardWake() }
 
 //export appRetry
 func appRetry() { retryAutomatic() }
+
+//export appMappingComplete
+func appMappingComplete() { finishMapping(<-mappingResults) }
+
+func notifyMappingComplete() { C.notifyMappingComplete() }
