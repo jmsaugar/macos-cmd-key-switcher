@@ -42,7 +42,7 @@ Apple vendor ID 1452 defaults to `mac`; other external vendors default to `win`.
 
 Manual selection also saves a classification override for every currently connected external keyboard after the command succeeds. Those overrides are used on reconnect and restart. With no external keyboard, manual switching changes only `type`; startup detection still selects `mac`. After wake, the selected mapping is reapplied. If multiple external keyboards have different layouts, `win` takes precedence, and the mapping applies globally to all keyboards, including the built-in keyboard.
 
-The mappings are defined in `src/core.go`: `win` swaps **left Command and left Option**, and `mac` maps those two keys to themselves. Right-side modifiers are unchanged. `hidutil property --set` replaces `UserKeyMapping`, so an existing mapping from another tool is overwritten.
+The mappings are defined in `src/mapping.go`: `win` swaps **left Command and left Option**, and `mac` maps those two keys to themselves. Right-side modifiers are unchanged. `hidutil property --set` replaces `UserKeyMapping`, so an existing mapping from another tool is overwritten.
 
 
 The exact commands are shown below for reference. Running them directly changes the active keyboard mapping. Usage IDs are decimal: `30064771298` (`0x7000000E2`) is left Option, and `30064771299` (`0x7000000E3`) is left Command.
@@ -59,7 +59,7 @@ The exact commands are shown below for reference. Running them directly changes 
 
 The app writes `~/Library/Application Support/CmdKeySwitcher/config.json`. It updates `type` only after the HID command succeeds, and saves atomically. The HID commands run directly as `/usr/bin/hidutil property --set <mapping>` without a shell. Detection reads IORegistry device metadata and subscribes to service arrival/removal notifications, without creating HID input clients or reading keystrokes. Input Monitoring and Accessibility access are not needed for this detection path.
 
-The configuration stores only `type` and `keyboard_types`. HID mappings are constants in `src/core.go`; changing them requires rebuilding the app. Overrides use `vendor:product_id:serial:<URL-escaped serial>` when a nonblank HID serial number is exposed, otherwise decimal `vendor:product_id`. Detection checks the unit override first, then the model override, then the vendor default. Serial numbers are supplied by the device; the app cannot verify their uniqueness, and shared or changing serials limit unit identification. Registry IDs and USB port locations are never saved as unit identities.
+The configuration stores only `type` and `keyboard_types`. HID mappings are constants in `src/mapping.go`; changing them requires rebuilding the app. Overrides use `vendor:product_id:serial:<URL-escaped serial>` when a nonblank HID serial number is exposed, otherwise decimal `vendor:product_id`. Detection checks the unit override first, then the model override, then the vendor default. Serial numbers are supplied by the device; the app cannot verify their uniqueness, and shared or changing serials limit unit identification. Registry IDs and USB port locations are never saved as unit identities.
 
 ```json
 "keyboard_types": {
@@ -79,3 +79,25 @@ Errors appear in the menu icon's tooltip and, when installed, `~/Library/Logs/Cm
 The native bridge uses Apple's [NSStatusBar](https://developer.apple.com/documentation/appkit/nsstatusbar) and [IOService registry notifications](https://developer.apple.com/documentation/iokit/1514362-ioserviceaddmatchingnotification). Go owns classification, configuration, command execution, and switching behavior. The UI and device callbacks stay on the main OS thread. IORegistry service arrival/removal callbacks replace periodic polling; a one-shot 250 ms debounce combines closely spaced notifications. One-shot retry timers run only after failures. Startup detection and wake checks remain in place.
 
 The build produces an unsigned app for local use, for the current machine's architecture. Distribution requires signing/notarization separately.
+
+## Source organization
+
+The app remains one Go package with a small native bridge. Responsibilities are separated by file:
+
+| Files in `src/` | Responsibility |
+|---|---|
+| `main_darwin.go` | Startup, config path, instance lock, and main-thread ownership |
+| `config.go`, `config_test.go` | Configuration defaults, validation, and atomic file persistence |
+| `keyboard.go`, `keyboard_test.go` | Device identity, remembered classifications, vendor rules, and fingerprints |
+| `detection_darwin.go` | Respond to device changes and wake; choose automatic selections |
+| `mapping.go` | Fixed modifier mappings and hidutil execution |
+| `switching_darwin.go`, `events_darwin_test.go` | Apply selections, save manual preferences, and coordinate UI state |
+| `retry.go`, `retry_darwin.go`, `retry_test.go` | Retry budget and automatic retry orchestration |
+| `bridge_darwin.go`, `native.h` | cgo conversions and native callbacks |
+| `menubar_darwin.m` | Cocoa menu, click handling, wake listener, and app event loop |
+| `keyboard_registry_darwin.m` | Read-only registry enumeration and primary keyboard filtering |
+| `keyboard_notifications_darwin.m` | Registry arrival/removal subscriptions and notification debounce |
+| `retry_darwin.m` | Main-thread one-shot retry timers |
+| `Info.plist`, `.clang-format` | Bundle metadata and native formatting rules |
+
+Go and native callbacks run on the main OS thread. Each native source is compiled into the same executable; no separate runtime services or libraries were added.

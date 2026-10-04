@@ -30,25 +30,6 @@ func TestDetection(t *testing.T) {
 		t.Fatal("override ignored")
 	}
 }
-func TestConfigRoundTrip(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "nested", "config.json")
-	c, err := loadConfig(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	c.Type = "win"
-	c.KeyboardTypes["1:2"] = "mac"
-	if err = saveConfig(path, c); err != nil {
-		t.Fatal(err)
-	}
-	got, err := loadConfig(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got.Type != "win" || got.KeyboardTypes["1:2"] != "mac" {
-		t.Fatal("config did not round trip")
-	}
-}
 func TestFingerprint(t *testing.T) {
 	a := Keyboard{ID: "a", Vendor: 1}
 	b := Keyboard{ID: "b", Vendor: 2}

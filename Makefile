@@ -3,7 +3,8 @@ GO := mise exec -- go
 GOFMT := mise exec -- gofmt
 CLANG_FORMAT := mise exec -- clang-format
 GO_FILES := $(wildcard src/*.go)
-NATIVE_FILES := src/native_darwin.m src/native.h
+NATIVE_SOURCES := $(wildcard src/*_darwin.m)
+NATIVE_FILES := $(NATIVE_SOURCES) src/native.h
 
 .PHONY: setup build test format check analyze install uninstall
 setup:
@@ -34,4 +35,6 @@ check:
 
 analyze:
 	mkdir -p build
-	xcrun clang --analyze -x objective-c -fobjc-arc -Wall -Wextra -Werror -Wno-unused-parameter -Xanalyzer -analyzer-werror src/native_darwin.m -o build/native-analysis.plist
+	@set -e; for source in $(NATIVE_SOURCES); do \
+		xcrun clang --analyze -x objective-c -fobjc-arc -Wall -Wextra -Werror -Wno-unused-parameter -Xanalyzer -analyzer-werror "$$source" -o "build/$$(basename "$$source" .m)-analysis.plist"; \
+	done
