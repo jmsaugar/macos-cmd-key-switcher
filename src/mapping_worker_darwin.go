@@ -17,72 +17,67 @@ type mappingResult struct {
 
 // These queue fields belong to the main thread. Only the result channel crosses
 // threads; workers never read application state or invoke Cocoa directly.
-var activeMapping, pendingMapping *mappingRequest
-var mappingResults = make(chan mappingResult, 1)
-var startMapping = launchMapping
-var signalMappingComplete = notifyMappingComplete
 
-func requestedType() string {
-	if pendingMapping != nil {
-		return pendingMapping.mode
+func (a *App) requestedType() string {
+	if a.pendingMapping != nil {
+		return a.pendingMapping.mode
 	}
-	if activeMapping != nil {
-		return activeMapping.mode
+	if a.activeMapping != nil {
+		return a.activeMapping.mode
 	}
-	return config.Type
+	return a.config.Type
 }
-func requestMapping(mode string, devices []Keyboard, automatic bool) {
-	request := mappingRequest{mode, append([]Keyboard(nil), devices...), automatic, observedDevices}
-	lastDevices = request.signature
-	if activeMapping != nil {
+func (a *App) requestMapping(mode string, devices []Keyboard, automatic bool) {
+	request := mappingRequest{mode, append([]Keyboard(nil), devices...), automatic, a.observedDevices}
+	a.lastDevices = request.signature
+	if a.activeMapping != nil {
 		// A newer request replaces waiting work, never the currently running command.
-		pendingMapping = &request
+		a.pendingMapping = &request
 		return
 	}
-	activeMapping = &request
-	startMapping(request)
+	a.activeMapping = &request
+	a.deps.startMapping(request)
 }
-func launchMapping(request mappingRequest) {
-	execute := executeMapping
-	// The current executor takes Config but hidutil only needs the requested mode.
-	snapshot := Config{Type: config.Type}
-	signal := signalMappingComplete
+func (a *App) launchMapping(request mappingRequest) {
+	execute := a.deps.executeMapping
+	signal := a.deps.signalMappingComplete
+	results := a.mappingResults
 	go func() {
-		mappingResults <- mappingResult{request, execute(snapshot, request.mode)}
+		results <- mappingResult{request, execute(request.mode)}
 		signal()
 	}()
 }
 
 // Called on the main thread after dispatching completion through Cocoa.
-func finishMapping(result mappingResult) {
-	next := pendingMapping
-	activeMapping, pendingMapping = nil, nil
+func (a *App) finishMapping(result mappingResult) {
+	next := a.pendingMapping
+	a.activeMapping, a.pendingMapping = nil, nil
 	if result.err != nil {
-		lastError = result.err.Error()
-		log.Print(lastError)
+		a.lastError = result.err.Error()
+		log.Print(a.lastError)
 		if next == nil && result.request.automatic {
-			retryMode = result.request.mode
-			queueRetry()
+			a.retryMode = result.request.mode
+			a.queueRetry()
 		}
 	} else {
-		config.Type = result.request.mode
+		a.config.Type = result.request.mode
 		// Superseded manual choices must not teach a preference the user replaced.
 		if next == nil {
-			rememberKeyboards(&config, result.request.devices, result.request.mode)
+			rememberKeyboards(&a.config, result.request.devices, result.request.mode)
 		}
-		if err := saveConfig(configPath, config); err != nil {
-			lastError = "Mapping applied, but config could not be saved: " + err.Error()
-			log.Print(lastError)
+		if err := a.deps.saveConfig(a.configPath, a.config); err != nil {
+			a.lastError = "Mapping applied, but config could not be saved: " + err.Error()
+			log.Print(a.lastError)
 		} else {
-			lastError = ""
+			a.lastError = ""
 		}
 		if next == nil {
-			retryMode = ""
+			a.retryMode = ""
 		}
 	}
-	refreshMenu()
+	a.refreshMenu()
 	if next != nil {
-		activeMapping = next
-		startMapping(*next)
+		a.activeMapping = next
+		a.deps.startMapping(*next)
 	}
 }

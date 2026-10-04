@@ -17,7 +17,7 @@ func mappingForType(t string) string {
 	return macMapping
 }
 
-func applyMapping(_ Config, t string) error {
+func applyMapping(t string) error {
 	mapping := mappingForType(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

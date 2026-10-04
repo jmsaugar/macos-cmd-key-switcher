@@ -3,42 +3,39 @@
 package main
 
 // Connected-device state and automatic selection orchestration.
-var lastDevices, observedDevices string
-var forceRefresh bool
-var readKeyboards = connectedKeyboards
 
-func keyboardChanged() {
-	refreshMenu()
-	resetRetries()
-	detectDevices()
+func (a *App) keyboardChanged() {
+	a.refreshMenu()
+	a.resetRetries()
+	a.detectDevices()
 }
 
-func keyboardWake() {
-	forceRefresh = true
-	keyboardChanged()
+func (a *App) keyboardWake() {
+	a.forceRefresh = true
+	a.keyboardChanged()
 }
 
-func detectDevices() {
-	devices, err := readKeyboards()
+func (a *App) detectDevices() {
+	devices, err := a.deps.readKeyboards()
 	if err != nil {
-		lastError = err.Error()
-		refreshMenu()
-		queueRetry()
+		a.lastError = err.Error()
+		a.refreshMenu()
+		a.queueRetry()
 		return
 	}
-	updateDevices(devices)
+	a.updateDevices(devices)
 }
 
-func updateDevices(devices []Keyboard) {
+func (a *App) updateDevices(devices []Keyboard) {
 	signature := fingerprint(devices)
-	changed := signature != lastDevices
-	observedDevices = signature
-	if changed || forceRefresh {
-		target := requestedType()
+	changed := signature != a.lastDevices
+	a.observedDevices = signature
+	if changed || a.forceRefresh {
+		target := a.requestedType()
 		if changed {
-			target = detectedType(devices, config)
+			target = detectedType(devices, a.config)
 		}
-		forceRefresh = false
-		automaticType(target)
+		a.forceRefresh = false
+		a.automaticType(target)
 	}
 }

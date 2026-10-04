@@ -86,7 +86,7 @@ The app remains one Go package with a small native bridge. Responsibilities are 
 
 | Files in `src/` | Responsibility |
 |---|---|
-| `main_darwin.go` | Startup, config path, instance lock, and main-thread ownership |
+| `main_darwin.go`, `app_darwin.go` | Startup, instance lock, application state ownership, and dependencies |
 | `config.go`, `config_test.go` | Configuration defaults, validation, and atomic file persistence |
 | `keyboard.go`, `keyboard_test.go` | Device identity, remembered classifications, vendor rules, and fingerprints |
 | `detection_darwin.go` | Respond to device changes and wake; choose automatic selections |
@@ -102,3 +102,5 @@ The app remains one Go package with a small native bridge. Responsibilities are 
 | `Info.plist`, `.clang-format` | Bundle metadata and native formatting rules |
 
 Application state and native callbacks run on the main OS thread; HID command execution runs in a Go worker. Each native source is compiled into the same executable; no separate runtime services or libraries were added.
+
+`App` owns the applied mode and keyboard preferences, device observations, active/pending mapping requests, retry budget, and per-instance dependencies. All state transitions run on the main OS thread. The native bridge holds the one running AppKit instance and forwards callbacks to it. Workers capture only a copied request, executor, result channel, and completion notifier; they never access mutable App state. Configuration maps are copied on construction to avoid sharing ownership with callers. Tests construct independent instances with mocked native/command dependencies instead of replacing package globals. Startup holds the single-instance file lock until the native event loop returns; native cleanup removes device notifications and timers, and the App clears pending work and cancels retries.

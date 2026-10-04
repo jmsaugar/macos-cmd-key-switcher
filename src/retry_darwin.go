@@ -7,29 +7,25 @@ import (
 )
 
 // Bounded automatic retry orchestration. Native one-shot timers call retryAutomatic.
-var retries retryBudget
-var retryMode string
-var scheduleAutomaticRetry = scheduleNativeRetry
-var cancelAutomaticRetry = cancelNativeRetry
 
-func resetRetries() {
-	cancelAutomaticRetry()
-	retries = retryBudget{}
-	retryMode = ""
+func (a *App) resetRetries() {
+	a.deps.cancelAutomaticRetry()
+	a.retries = retryBudget{}
+	a.retryMode = ""
 }
 
-func queueRetry() {
-	if seconds, ok := retries.next(); ok {
-		scheduleAutomaticRetry(seconds)
+func (a *App) queueRetry() {
+	if seconds, ok := a.retries.next(); ok {
+		a.deps.scheduleAutomaticRetry(seconds)
 	} else {
-		log.Print("Automatic retries exhausted; reconnect a keyboard, wake the Mac, or switch manually to try again")
+		log.Print("Automatic a.retries exhausted; reconnect a keyboard, wake the Mac, or switch manually to try again")
 	}
 }
 
-func retryAutomatic() {
-	if retryMode != "" {
-		automaticType(retryMode)
+func (a *App) retryAutomatic() {
+	if a.retryMode != "" {
+		a.automaticType(a.retryMode)
 	} else {
-		detectDevices()
+		a.detectDevices()
 	}
 }

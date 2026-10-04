@@ -16,14 +16,22 @@ import (
 )
 
 // All Go/native conversions and callbacks live here.
-func runNativeApp()                   { C.runApp() }
+// AppKit supports one running application. Only the bridge holds this pointer;
+// tests create independent App instances and do not replace it.
+var nativeApp *App
+
+func runNativeApp(a *App) {
+	nativeApp = a
+	defer func() { nativeApp = nil }()
+	C.runApp()
+}
 func scheduleNativeRetry(seconds int) { C.scheduleRetry(C.double(seconds)) }
 func cancelNativeRetry()              { C.cancelRetry() }
 
-func refreshMenu() {
-	mode := C.CString(config.Type)
+func nativeUpdateMenu(modeValue, errorValue string) {
+	mode := C.CString(modeValue)
 	defer C.free(unsafe.Pointer(mode))
-	message := C.CString(lastError)
+	message := C.CString(errorValue)
 	defer C.free(unsafe.Pointer(message))
 	C.updateMenu(mode, message)
 }
@@ -41,18 +49,38 @@ func connectedKeyboards() ([]Keyboard, error) {
 }
 
 //export appTick
-func appTick() { keyboardChanged() }
+func appTick() {
+	if nativeApp != nil {
+		nativeApp.keyboardChanged()
+	}
+}
 
 //export appSwitch
-func appSwitch() { switchKeyboard() }
+func appSwitch() {
+	if nativeApp != nil {
+		nativeApp.switchKeyboard()
+	}
+}
 
 //export appWake
-func appWake() { keyboardWake() }
+func appWake() {
+	if nativeApp != nil {
+		nativeApp.keyboardWake()
+	}
+}
 
 //export appRetry
-func appRetry() { retryAutomatic() }
+func appRetry() {
+	if nativeApp != nil {
+		nativeApp.retryAutomatic()
+	}
+}
 
 //export appMappingComplete
-func appMappingComplete() { finishMapping(<-mappingResults) }
+func appMappingComplete() {
+	if nativeApp != nil {
+		nativeApp.finishMapping(<-nativeApp.mappingResults)
+	}
+}
 
 func notifyMappingComplete() { C.notifyMappingComplete() }

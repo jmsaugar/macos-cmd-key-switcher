@@ -7,29 +7,26 @@ import (
 )
 
 // Application selection and errors; accessed only on the main OS thread.
-var config Config
-var lastError string
-var executeMapping = applyMapping
 
-func automaticType(mode string) {
-	requestMapping(mode, nil, true)
+func (a *App) automaticType(mode string) {
+	a.requestMapping(mode, nil, true)
 }
 
-func switchKeyboard() {
-	resetRetries()
-	forceRefresh = false
-	devices, err := readKeyboards()
+func (a *App) switchKeyboard() {
+	a.resetRetries()
+	a.forceRefresh = false
+	devices, err := a.deps.readKeyboards()
 	if err != nil {
-		lastError = err.Error()
+		a.lastError = err.Error()
 		log.Print(err)
-		refreshMenu()
+		a.refreshMenu()
 		return
 	}
-	observedDevices = fingerprint(devices)
-	lastDevices = observedDevices
+	a.observedDevices = fingerprint(devices)
+	a.lastDevices = a.observedDevices
 	t := "win"
-	if requestedType() == "win" {
+	if a.requestedType() == "win" {
 		t = "mac"
 	}
-	requestMapping(t, devices, false)
+	a.requestMapping(t, devices, false)
 }

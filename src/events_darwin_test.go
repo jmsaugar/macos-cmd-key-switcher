@@ -9,114 +9,91 @@ import (
 	"testing"
 )
 
-func isolateEvents(t *testing.T) {
+func testApp(t *testing.T) *App {
 	t.Helper()
-	oldConfig, oldLast, oldObserved, oldError := config, lastDevices, observedDevices, lastError
-	oldPath := configPath
-	oldRetries, oldMode, oldForce := retries, retryMode, forceRefresh
-	oldStart := startMapping
-	oldActive, oldPending := activeMapping, pendingMapping
-	oldRead := readKeyboards
-	oldExec, oldSchedule, oldCancel := executeMapping, scheduleAutomaticRetry, cancelAutomaticRetry
-	t.Cleanup(func() {
-		startMapping = oldStart
-		activeMapping, pendingMapping = oldActive, oldPending
-		readKeyboards = oldRead
-		config, lastDevices, observedDevices, lastError = oldConfig, oldLast, oldObserved, oldError
-		configPath = oldPath
-		retries, retryMode, forceRefresh = oldRetries, oldMode, oldForce
-		executeMapping, scheduleAutomaticRetry, cancelAutomaticRetry = oldExec, oldSchedule, oldCancel
-	})
-	readKeyboards = func() ([]Keyboard, error) { return []Keyboard{{ID: "external", Vendor: 1234}}, nil }
-	activeMapping, pendingMapping = nil, nil
-	startMapping = func(request mappingRequest) {
-		finishMapping(mappingResult{request, executeMapping(config, request.mode)})
+	a := newApp(filepath.Join(t.TempDir(), "config.json"), defaults())
+	a.deps.readKeyboards = func() ([]Keyboard, error) { return []Keyboard{{ID: "external", Vendor: 1234}}, nil }
+	a.deps.cancelAutomaticRetry = func() {}
+	a.deps.scheduleAutomaticRetry = func(int) { t.Fatal("unexpected retry") }
+	a.deps.executeMapping = func(string) error { return nil }
+	a.deps.updateMenu = func(string, string) {}
+	a.deps.startMapping = func(request mappingRequest) {
+		a.finishMapping(mappingResult{request, a.deps.executeMapping(request.mode)})
 	}
-	config = defaults()
-	configPath = filepath.Join(t.TempDir(), "config.json")
-	lastDevices = ""
-	observedDevices = ""
-	retries = retryBudget{}
-	retryMode = ""
-	forceRefresh = false
-	cancelAutomaticRetry = func() {}
-	scheduleAutomaticRetry = func(int) { t.Fatal("unexpected retry") }
-	executeMapping = func(Config, string) error { return nil }
+	return a
 }
 
 func TestDeviceEventsPreserveManualSelection(t *testing.T) {
-	isolateEvents(t)
+	a := testApp(t)
 	windows := []Keyboard{{ID: "external", Vendor: 1234}}
-	updateDevices(windows)
-	if config.Type != "win" {
+	a.updateDevices(windows)
+	if a.config.Type != "win" {
 		t.Fatal("connection did not select win")
 	}
-	appSwitch()
-	updateDevices(windows)
-	if config.Type != "mac" {
+	a.switchKeyboard()
+	a.updateDevices(windows)
+	if a.config.Type != "mac" {
 		t.Fatal("duplicate notification replaced manual selection")
 	}
-	forceRefresh = true
-	updateDevices(windows)
-	if config.Type != "mac" {
+	a.forceRefresh = true
+	a.updateDevices(windows)
+	if a.config.Type != "mac" {
 		t.Fatal("wake replaced manual selection")
 	}
-	updateDevices(nil)
-	if config.Type != "mac" {
+	a.updateDevices(nil)
+	if a.config.Type != "mac" {
 		t.Fatal("disconnect did not select mac")
 	}
 }
 
 func TestAutomaticFailureRetriesAndManualCancellation(t *testing.T) {
-	isolateEvents(t)
+	a := testApp(t)
 	var delays []int
-	scheduleAutomaticRetry = func(seconds int) { delays = append(delays, seconds) }
+	a.deps.scheduleAutomaticRetry = func(seconds int) { delays = append(delays, seconds) }
 	calls := 0
-	executeMapping = func(Config, string) error { calls++; return errors.New("simulated failure") }
-	updateDevices([]Keyboard{{ID: "external", Vendor: 1234}})
+	a.deps.executeMapping = func(string) error { calls++; return errors.New("simulated failure") }
+	a.updateDevices([]Keyboard{{ID: "external", Vendor: 1234}})
 	for i := 0; i < 3; i++ {
-		appRetry()
+		a.retryAutomatic()
 	}
 	if calls != 4 || !reflect.DeepEqual(delays, []int{2, 4, 8}) {
 		t.Fatalf("calls=%d delays=%v", calls, delays)
 	}
-	if config.Type != "mac" {
+	if a.config.Type != "mac" {
 		t.Fatal("failure changed state")
 	}
-	executeMapping = func(Config, string) error { return nil }
+	a.deps.executeMapping = func(string) error { return nil }
 	cancelled := false
-	cancelAutomaticRetry = func() { cancelled = true }
-	appSwitch()
-	if !cancelled || retryMode != "" || retries.attempts != 0 {
+	a.deps.cancelAutomaticRetry = func() { cancelled = true }
+	a.switchKeyboard()
+	if !cancelled || a.retryMode != "" || a.retries.attempts != 0 {
 		t.Fatal("manual switch did not cancel retries")
 	}
-	appSwitch() // choose mac manually for the still-connected Windows keyboard
-	updateDevices([]Keyboard{{ID: "external", Vendor: 1234}})
-	if config.Type != "mac" {
+	a.switchKeyboard() // choose mac manually for the still-connected Windows keyboard
+	a.updateDevices([]Keyboard{{ID: "external", Vendor: 1234}})
+	if a.config.Type != "mac" {
 		t.Fatal("duplicate event retried superseded automatic selection")
 	}
 }
 
 func TestManualSwitchPersistsConnectedUnit(t *testing.T) {
-	isolateEvents(t)
-	oldPath := configPath
-	t.Cleanup(func() { configPath = oldPath })
-	configPath = filepath.Join(t.TempDir(), "config.json")
+	a := testApp(t)
+	a.configPath = filepath.Join(t.TempDir(), "config.json")
 	keyboard := Keyboard{ID: "new", Vendor: 1234, ProductID: 5678, Serial: "unit-A"}
-	readKeyboards = func() ([]Keyboard, error) { return []Keyboard{keyboard}, nil }
-	config.Type = "win"
-	executeMapping = func(Config, string) error { return nil }
-	appSwitch()
-	saved, err := loadConfig(configPath)
+	a.deps.readKeyboards = func() ([]Keyboard, error) { return []Keyboard{keyboard}, nil }
+	a.config.Type = "win"
+	a.deps.executeMapping = func(string) error { return nil }
+	a.switchKeyboard()
+	saved, err := loadConfig(a.configPath)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if saved.Type != "mac" || saved.KeyboardTypes[unitKey(keyboard)] != "mac" {
 		t.Fatal("manual unit preference not saved")
 	}
-	executeMapping = func(Config, string) error { return errors.New("simulated failure") }
-	appSwitch()
-	if config.KeyboardTypes[unitKey(keyboard)] != "mac" {
+	a.deps.executeMapping = func(string) error { return errors.New("simulated failure") }
+	a.switchKeyboard()
+	if a.config.KeyboardTypes[unitKey(keyboard)] != "mac" {
 		t.Fatal("failed command changed preference")
 	}
 }
