@@ -15,7 +15,7 @@ make test
 make build
 ```
 
-`make format` updates Go and native source formatting. `make check` verifies formatting, runs Go vet, checks shell/plist syntax, and runs Clang's static analyzer. `make test` runs tests; `make build` produces the local app bundle. These commands do not launch or install the app or modify keyboard mappings. Analyzer output is saved under `build/`. `make setup` uses Bash to read the tool-name column from `mise ls --local --no-header` and pass the project tool names to `mise install --locked`. Tool names are not duplicated in the Makefile, and unrelated globally configured tools are excluded. Setup stops if discovery fails or finds no tools, rather than running a bare install. To preview setup without installing tools, run `bash scripts/setup.sh --dry-run`. Make invokes Go and clang-format through `mise exec`, so shell activation is optional. Run the locked installation first; mise commands may otherwise install missing tools.
+`make format` updates Go and native source formatting. `make check` verifies formatting, runs Go vet, checks shell/plist syntax, and runs Clang's static analyzer. `make test` runs tests; `make build` produces the local app bundle. These commands do not launch or install the app or modify keyboard mappings. Analyzer output is saved under `build/`. `make setup` uses Bash to read the tool-name column from `mise ls --local --no-header` and pass the project tool names to `mise install --locked`. Tool names are not duplicated in the Makefile, and unrelated globally configured tools are excluded. Setup stops if discovery fails or finds no tools, rather than running a bare install. Make invokes Go and clang-format through `mise exec`, so shell activation is optional. Run the locked installation first; mise commands may otherwise install missing tools.
 
 To change tool versions, edit `.config/mise.toml`, run `mise lock --platform macos-arm64,macos-x64`, then `make setup`. Commit both files together. Formatting rules are committed in `src/.clang-format`; Go uses standard gofmt rules. Verify changes on macOS because the bridge depends on Cocoa and IOKit. To record the Apple toolchain used locally, run `xcrun clang --version` and `xcrun --show-sdk-version`.
 
@@ -30,23 +30,6 @@ make install
 `make install` copies the app to `~/Applications`, registers a user LaunchAgent, and starts it immediately. It starts automatically at **user login**, when macOS provides a menu bar. It does not run before login. Installation requires permission to write outside the project when invoked from a sandboxed coding tool.
 
 The menu bar shows `⌘ mac` or `⊞ win`. Its dropdown contains exactly one action, “Switch to win” or “Switch to mac”. To stop and remove the installed app, run `make uninstall`; this also deletes the saved configuration (including its lock file) and logs from `~/Library/Application Support/CmdKeySwitcher` and `~/Library/Logs/CmdKeySwitcher`. Uninstalling does not reset keyboard mappings previously applied by the app. The LaunchAgent restarts the app if it exits.
-
-## Preview without installation or keyboard changes
-
-Run `make preview` from a terminal. This builds the app inside the project and starts its menu bar UI with `--dry-run`. Click the single switch button to test both states; the terminal prints the HID command that would run. Press **Ctrl+C** in that terminal to exit.
-
-Preview mode never executes `hidutil`, reads or writes your saved configuration, creates a lock file, installs the app, or registers a login agent. State exists only in memory. Building still creates files in `build/` and uses Go's build cache.
-
-By default, preview uses real, read-only keyboard detection, so you can connect/disconnect a keyboard to test automatic selection. You can also simulate a fixed keyboard setup without needing hardware:
-
-```sh
-make build
-build/CmdKeySwitcher.app/Contents/MacOS/cmd-key-switcher --dry-run --simulate none
-build/CmdKeySwitcher.app/Contents/MacOS/cmd-key-switcher --dry-run --simulate mac
-build/CmdKeySwitcher.app/Contents/MacOS/cmd-key-switcher --dry-run --simulate win
-```
-
-Run one command at a time and exit with Ctrl+C between scenarios. `--simulate` requires `--dry-run`. Preview always starts with the built-in default mappings and ignores `--config`.
 
 ## Detection and switching
 
@@ -85,15 +68,9 @@ The configuration stores only `type` and `keyboard_types`. HID mappings are cons
 }
 ```
 
-Manual switching records overrides automatically, using a fresh device snapshot at click time. If multiple external keyboards are connected, the selection is remembered for all of them; built-in keyboards are excluded. Preview remembers overrides only in memory. Manual switching stops with an error if it cannot enumerate keyboards. Configuration edits require restarting the app.
+Manual switching records overrides automatically, using a fresh device snapshot at click time. If multiple external keyboards are connected, the selection is remembered for all of them; built-in keyboards are excluded. Manual switching stops with an error if it cannot enumerate keyboards. Configuration edits require restarting the app.
 
-Find your IDs and exposed serial numbers without applying any mappings:
-
-```sh
-build/CmdKeySwitcher.app/Contents/MacOS/cmd-key-switcher --list-keyboards
-```
-
-A custom config path is available with `--config /path/to/config.json`. Only one instance per config path can run at a time. Invalid configuration fails startup rather than silently replacing it.
+The app uses the fixed configuration location above and allows only one instance. Invalid configuration fails startup rather than silently replacing it. There are no preview, simulation, diagnostic-listing, or custom-config runtime modes; running the app applies real keyboard mappings.
 
 Errors appear in the menu icon's tooltip and, when installed, `~/Library/Logs/CmdKeySwitcher/stderr.log`. Failed automatic HID commands or enumeration attempts receive up to three retries after delays of 2, 4, and 8 seconds. A new device notification or wake starts a fresh retry budget; a manual switch cancels pending retries. Failed manual commands keep the current selection.
 

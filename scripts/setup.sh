@@ -2,14 +2,8 @@
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
-dry_run=false
-case "${1:-}" in
-  "") ;;
-  --dry-run) dry_run=true ;;
-  *) echo "Usage: bash scripts/setup.sh [--dry-run]" >&2; exit 2 ;;
-esac
-if [ "$#" -gt 1 ]; then
-  echo "Usage: bash scripts/setup.sh [--dry-run]" >&2
+if [ "$#" -ne 0 ]; then
+  echo "Usage: bash scripts/setup.sh" >&2
   exit 2
 fi
 
@@ -34,7 +28,4 @@ fi
 printf 'Project tools:'
 printf ' %s' "${tools[@]}"
 printf '\n'
-if [ "$dry_run" = true ]; then
-  exec mise install --locked --dry-run "${tools[@]}"
-fi
 exec mise install --locked "${tools[@]}"

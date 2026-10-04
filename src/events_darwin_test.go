@@ -11,19 +11,21 @@ import (
 
 func isolateEvents(t *testing.T) {
 	t.Helper()
-	oldConfig, oldDry, oldLast, oldObserved, oldError := config, dryRun, lastDevices, observedDevices, lastError
+	oldConfig, oldLast, oldObserved, oldError := config, lastDevices, observedDevices, lastError
+	oldPath := configPath
 	oldRetries, oldMode, oldForce := retries, retryMode, forceRefresh
 	oldRead := readKeyboards
 	oldExec, oldSchedule, oldCancel := executeMapping, scheduleAutomaticRetry, cancelAutomaticRetry
 	t.Cleanup(func() {
 		readKeyboards = oldRead
-		config, dryRun, lastDevices, observedDevices, lastError = oldConfig, oldDry, oldLast, oldObserved, oldError
+		config, lastDevices, observedDevices, lastError = oldConfig, oldLast, oldObserved, oldError
+		configPath = oldPath
 		retries, retryMode, forceRefresh = oldRetries, oldMode, oldForce
 		executeMapping, scheduleAutomaticRetry, cancelAutomaticRetry = oldExec, oldSchedule, oldCancel
 	})
 	readKeyboards = func() ([]Keyboard, error) { return []Keyboard{{ID: "external", Vendor: 1234}}, nil }
 	config = defaults()
-	dryRun = true
+	configPath = filepath.Join(t.TempDir(), "config.json")
 	lastDevices = ""
 	observedDevices = ""
 	retries = retryBudget{}
@@ -31,7 +33,7 @@ func isolateEvents(t *testing.T) {
 	forceRefresh = false
 	cancelAutomaticRetry = func() {}
 	scheduleAutomaticRetry = func(int) { t.Fatal("unexpected retry") }
-	executeMapping = func(Config, string) error { t.Fatal("unexpected HID command"); return nil }
+	executeMapping = func(Config, string) error { return nil }
 }
 
 func TestDeviceEventsPreserveManualSelection(t *testing.T) {
@@ -59,7 +61,6 @@ func TestDeviceEventsPreserveManualSelection(t *testing.T) {
 
 func TestAutomaticFailureRetriesAndManualCancellation(t *testing.T) {
 	isolateEvents(t)
-	dryRun = false
 	var delays []int
 	scheduleAutomaticRetry = func(seconds int) { delays = append(delays, seconds) }
 	calls := 0
@@ -74,7 +75,7 @@ func TestAutomaticFailureRetriesAndManualCancellation(t *testing.T) {
 	if config.Type != "mac" {
 		t.Fatal("failure changed state")
 	}
-	dryRun = true
+	executeMapping = func(Config, string) error { return nil }
 	cancelled := false
 	cancelAutomaticRetry = func() { cancelled = true }
 	appSwitch()
@@ -96,7 +97,6 @@ func TestManualSwitchPersistsConnectedUnit(t *testing.T) {
 	keyboard := Keyboard{ID: "new", Vendor: 1234, ProductID: 5678, Serial: "unit-A"}
 	readKeyboards = func() ([]Keyboard, error) { return []Keyboard{keyboard}, nil }
 	config.Type = "win"
-	dryRun = false
 	executeMapping = func(Config, string) error { return nil }
 	appSwitch()
 	saved, err := loadConfig(configPath)

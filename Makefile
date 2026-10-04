@@ -5,7 +5,7 @@ CLANG_FORMAT := mise exec -- clang-format
 GO_FILES := $(wildcard src/*.go)
 NATIVE_FILES := src/native_darwin.m src/native.h
 
-.PHONY: setup build test format check analyze preview install uninstall
+.PHONY: setup build test format check analyze install uninstall
 setup:
 	bash scripts/setup.sh
 
@@ -15,8 +15,6 @@ build:
 	cp src/Info.plist "$(APP)/Contents/Info.plist"
 test:
 	$(GO) test ./...
-preview: build
-	"$(APP)/Contents/MacOS/cmd-key-switcher" --dry-run
 install: build
 	bash scripts/install.sh
 uninstall:

@@ -24,8 +24,6 @@ import (
 var config Config
 var configPath, lastDevices, lastError string
 var lockFile *os.File
-var dryRun bool
-var simulatedKeyboard string
 var retries retryBudget
 var retryMode string
 var forceRefresh bool
@@ -44,15 +42,6 @@ func refreshMenu() {
 func setType(t string) bool { return selectType(t, nil) }
 
 func selectType(t string, remembered []Keyboard) bool {
-	if dryRun {
-		mapping := mappingForType(t)
-		log.Printf("PREVIEW: would run /usr/bin/hidutil property --set %s", mapping)
-		config.Type = t
-		rememberKeyboards(&config, remembered, t)
-		lastError = "Preview mode: mappings and configuration are not changed"
-		refreshMenu()
-		return true
-	}
 	if err := executeMapping(config, t); err != nil {
 		lastError = err.Error()
 		log.Print(err)
@@ -80,16 +69,6 @@ func appTick() {
 var readKeyboards = connectedKeyboards
 
 func connectedKeyboards() ([]Keyboard, error) {
-	if simulatedKeyboard != "" {
-		switch simulatedKeyboard {
-		case "mac":
-			return []Keyboard{{ID: "preview-mac", Vendor: 1452}}, nil
-		case "win":
-			return []Keyboard{{ID: "preview-win", Vendor: 1234}}, nil
-		default:
-			return nil, nil
-		}
-	}
 	raw := C.keyboardJSON()
 	if raw == nil {
 		return nil, fmt.Errorf("could not enumerate keyboards")
@@ -194,34 +173,13 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	flag.StringVar(&configPath, "config", filepath.Join(home, "Library", "Application Support", "CmdKeySwitcher", "config.json"), "config file")
-	list := flag.Bool("list-keyboards", false, "print detected keyboards and exit")
-	flag.BoolVar(&dryRun, "dry-run", false, "preview UI without running hidutil or reading/writing config")
-	flag.StringVar(&simulatedKeyboard, "simulate", "", "with --dry-run, simulate none, mac, or win instead of detecting hardware")
+	// No optional runtime modes. Flag parsing rejects obsolete options before
+	// the app can execute any mapping commands.
 	flag.Parse()
-	if simulatedKeyboard != "" {
-		if !dryRun {
-			log.Fatal("--simulate requires --dry-run")
-		}
-		if simulatedKeyboard != "none" && simulatedKeyboard != "mac" && simulatedKeyboard != "win" {
-			log.Fatal("--simulate must be none, mac, or win")
-		}
+	if flag.NArg() != 0 {
+		log.Fatal("unexpected command-line arguments")
 	}
-	if *list {
-		raw := C.keyboardJSON()
-		if raw == nil {
-			log.Fatal("cannot enumerate keyboards")
-		}
-		defer C.free(unsafe.Pointer(raw))
-		fmt.Println(C.GoString(raw))
-		return
-	}
-	if dryRun {
-		config = defaults()
-		log.Print("PREVIEW: no HID commands, config files, or login registration; press Ctrl+C to exit")
-		C.runApp()
-		return
-	}
+	configPath = filepath.Join(home, "Library", "Application Support", "CmdKeySwitcher", "config.json")
 	config, err = loadConfig(configPath)
 	if err != nil {
 		log.Fatal(err)
