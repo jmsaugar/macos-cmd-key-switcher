@@ -17,6 +17,13 @@ func testApp(t *testing.T) *App {
 	a.deps.scheduleAutomaticRetry = func(int) { t.Fatal("unexpected retry") }
 	a.deps.executeMapping = func(string) error { return nil }
 	a.deps.updateMenu = func(string, string) {}
+	a.deps.unregisterStartup = func() error { return nil }
+	a.deps.removeUserData = func() error { return nil }
+	a.deps.stopWatching = func() {}
+	a.deps.resumeWatching = func() {}
+	a.deps.setMenuEnabled = func(bool) {}
+	a.deps.quit = func() {}
+	a.deps.showError = func(message string) { t.Fatal(message) }
 	a.deps.startMapping = func(request mappingRequest) {
 		a.finishMapping(mappingResult{request, a.deps.executeMapping(request.mode)})
 	}

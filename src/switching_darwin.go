@@ -13,6 +13,9 @@ func (a *App) automaticType(mode string) {
 }
 
 func (a *App) switchKeyboard() {
+	if a.stopping {
+		return
+	}
 	a.resetRetries()
 	a.forceRefresh = false
 	devices, err := a.deps.readKeyboards()

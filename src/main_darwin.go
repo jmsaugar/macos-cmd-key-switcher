@@ -4,11 +4,10 @@ package main
 
 import (
 	"flag"
+	"io"
 	"log"
 	"os"
-	"path/filepath"
 	"runtime"
-	"syscall"
 )
 
 func main() {
@@ -23,23 +22,37 @@ func main() {
 	if flag.NArg() != 0 {
 		log.Fatal("unexpected command-line arguments")
 	}
-	configPath := filepath.Join(home, "Library", "Application Support", "CmdKeySwitcher", "config.json")
+	configPath := configFilePath(home)
 	config, err := loadConfig(configPath)
 	if err != nil {
 		log.Fatal(err)
 	}
-	if err = os.MkdirAll(filepath.Dir(configPath), 0700); err != nil {
-		log.Fatal(err)
+	lock, err := acquireInstanceLock(configPath + ".lock")
+	if err != nil {
+		log.Fatal("Could not acquire the instance lock (another instance may be running): ", err)
 	}
-	lockFile, err := os.OpenFile(configPath+".lock", os.O_CREATE|os.O_RDWR, 0600)
+	defer lock.close()
+	logFile, err := openAppLog(logsDirectory(home))
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer lockFile.Close()
-	if err = syscall.Flock(int(lockFile.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
-		log.Fatal("another instance is running: ", err)
-	}
+	defer func() { logFile.Close() }()
+	log.SetOutput(io.MultiWriter(os.Stderr, logFile))
 	app := newApp(configPath, config)
+	app.logsPath = logsDirectory(home)
+	app.deps.recoverAfterCleanup = func() error {
+		if err := lock.restore(); err != nil {
+			return err
+		}
+		replacement, err := openAppLog(app.logsPath)
+		if err != nil {
+			return err
+		}
+		log.SetOutput(io.MultiWriter(os.Stderr, replacement))
+		logFile.Close()
+		logFile = replacement
+		return nil
+	}
 	defer app.close()
 	runNativeApp(app)
 }

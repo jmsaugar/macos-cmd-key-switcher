@@ -28,6 +28,9 @@ func (a *App) requestedType() string {
 	return a.config.Type
 }
 func (a *App) requestMapping(mode string, devices []Keyboard, automatic bool) {
+	if a.stopping {
+		return
+	}
 	request := mappingRequest{mode, append([]Keyboard(nil), devices...), automatic, a.observedDevices}
 	a.lastDevices = request.signature
 	if a.activeMapping != nil {
@@ -50,6 +53,23 @@ func (a *App) launchMapping(request mappingRequest) {
 
 // Called on the main thread after dispatching completion through Cocoa.
 func (a *App) finishMapping(result mappingResult) {
+	if a.stopping {
+		a.activeMapping = nil
+		if !a.cleaningUp {
+			// A normal close preserves the result of an already-running selection.
+			a.pendingMapping = nil
+			a.completeMapping(result)
+		} else if result.err == nil {
+			// Reflect the applied mode if cleanup later fails and the app stays open.
+			a.config.Type = result.request.mode
+		}
+		a.finishShutdown()
+		return
+	}
+	a.completeMapping(result)
+}
+
+func (a *App) completeMapping(result mappingResult) {
 	next := a.pendingMapping
 	a.activeMapping, a.pendingMapping = nil, nil
 	if result.err != nil {

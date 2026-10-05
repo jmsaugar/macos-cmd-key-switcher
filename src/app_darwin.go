@@ -16,6 +16,9 @@ type App struct {
 	retries                       retryBudget
 	retryMode                     string
 	deps                          appDependencies
+	// Shutdown waits for the active command before exiting or deleting files.
+	stopping, cleaningUp bool
+	logsPath             string
 }
 
 type appDependencies struct {
@@ -27,6 +30,14 @@ type appDependencies struct {
 	cancelAutomaticRetry   func()
 	startMapping           func(mappingRequest)
 	signalMappingComplete  func()
+	unregisterStartup      func() error
+	removeUserData         func() error
+	recoverAfterCleanup    func() error
+	stopWatching           func()
+	resumeWatching         func()
+	setMenuEnabled         func(bool)
+	quit                   func()
+	showError              func(string)
 }
 
 func newApp(path string, config Config) *App {
@@ -42,6 +53,10 @@ func newApp(path string, config Config) *App {
 		saveConfig: saveConfig, updateMenu: nativeUpdateMenu,
 		scheduleAutomaticRetry: scheduleNativeRetry, cancelAutomaticRetry: cancelNativeRetry,
 		startMapping: a.launchMapping, signalMappingComplete: notifyMappingComplete,
+		unregisterStartup: nativeUnregisterStartup, removeUserData: a.removeUserData,
+		recoverAfterCleanup: func() error { return nil }, // Bound to startup resources by main.
+		stopWatching:        stopNativeWatching, resumeWatching: resumeNativeWatching,
+		setMenuEnabled: nativeSetMenuEnabled, quit: stopNativeApp, showError: nativeShowError,
 	}
 	return a
 }

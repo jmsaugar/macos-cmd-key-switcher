@@ -36,6 +36,12 @@ void runApp(void) {
                                      keyEquivalent:@""];
         toggle.target = controller;
         [menu addItem:toggle];
+        NSMenuItem *settings = [[NSMenuItem alloc] initWithTitle:@"Settings"
+                                                          action:nil
+                                                   keyEquivalent:@""];
+        settings.submenu = settingsMenu();
+        [menu addItem:settings];
+        menu.autoenablesItems = NO;
         status.menu = menu;
         beginKeyboardWatching();
         appTick();
@@ -50,4 +56,24 @@ void runApp(void) {
         endKeyboardWatching();
         cancelRetry();
     }
+}
+
+void setMenuEnabled(int enabled) {
+    for (NSMenuItem *item in status.menu.itemArray)
+        item.enabled = enabled;
+}
+
+void stopApp(void) {
+    [NSApp stop:nil];
+    // Wake the event loop when shutdown finishes in a dispatched worker callback.
+    [NSApp postEvent:[NSEvent otherEventWithType:NSEventTypeApplicationDefined
+                                        location:NSZeroPoint
+                                   modifierFlags:0
+                                       timestamp:0
+                                    windowNumber:0
+                                         context:nil
+                                         subtype:0
+                                           data1:0
+                                           data2:0]
+             atStart:NO];
 }

@@ -5,6 +5,9 @@ package main
 // Connected-device state and automatic selection orchestration.
 
 func (a *App) keyboardChanged() {
+	if a.stopping {
+		return
+	}
 	a.refreshMenu()
 	a.resetRetries()
 	a.detectDevices()

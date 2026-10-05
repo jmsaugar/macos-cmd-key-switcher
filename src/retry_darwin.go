@@ -15,6 +15,9 @@ func (a *App) resetRetries() {
 }
 
 func (a *App) queueRetry() {
+	if a.stopping {
+		return
+	}
 	if seconds, ok := a.retries.next(); ok {
 		a.deps.scheduleAutomaticRetry(seconds)
 	} else {
@@ -23,6 +26,9 @@ func (a *App) queueRetry() {
 }
 
 func (a *App) retryAutomatic() {
+	if a.stopping {
+		return
+	}
 	if a.retryMode != "" {
 		a.automaticType(a.retryMode)
 	} else {

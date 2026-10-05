@@ -6,3 +6,7 @@ go = "1.27.1"
 CGO_ENABLED = "1"
 # Use Apple's compiler/SDK for the native bridge, independently of LLVM formatting.
 CC = "clang"
+# Apply the deployment target to runtime/cgo as well as the app's native sources.
+MACOSX_DEPLOYMENT_TARGET = "13.0"
+CGO_CFLAGS = "-O2 -g -mmacosx-version-min=13.0"
+CGO_LDFLAGS = "-O2 -g -mmacosx-version-min=13.0"

@@ -3,8 +3,8 @@
 package main
 
 /*
-#cgo CFLAGS: -x objective-c -fobjc-arc
-#cgo LDFLAGS: -framework Cocoa -framework IOKit -framework CoreFoundation
+#cgo CFLAGS: -x objective-c -fobjc-arc -mmacosx-version-min=13.0
+#cgo LDFLAGS: -mmacosx-version-min=13.0 -framework Cocoa -framework IOKit -framework CoreFoundation -framework ServiceManagement
 #include <stdlib.h>
 #include "native.h"
 */
