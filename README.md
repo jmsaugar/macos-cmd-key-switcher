@@ -4,6 +4,8 @@ A Go macOS menu bar app with a small native Cocoa/IOKit/ServiceManagement bridge
 
 Application source and tests live in `src/`, including the Go code, Objective-C bridge, and app bundle metadata in `src/Info.plist`. `go.mod` stays at the repository root; build and tooling commands run from that root.
 
+The app icon source is `src/assets/AppIcon.png`. `make build` uses macOS's `sips` and `iconutil` through `scripts/build-icon.sh` to generate standard and Retina icon sizes and package them as `Contents/Resources/AppIcon.icns` before signing the bundle. `src/Info.plist` references it through Apple's [CFBundleIconFile](https://developer.apple.com/documentation/BundleResources/Information-Property-List/CFBundleIconFile) key. Replace the source with a square PNG of at least 1024 × 1024 pixels and rebuild to change the Finder/Application icon. The menu bar continues to show the current `mac`/`win` mode as text.
+
 Development tools are pinned in `.config/mise.toml` and `.config/mise.lock` for Apple Silicon and Intel Macs. The formatter uses mise's Conda backend, which installs its supporting packages in mise-managed directories; this is development tooling, not an application dependency. Apple Clang and the macOS SDK come separately from Command Line Tools or Xcode and are not installed or pinned by mise. Builds use Apple Clang from the selected developer tools, not the formatter's LLVM libraries.
 
 ```sh
@@ -119,6 +121,7 @@ The app remains one Go package with a small native bridge. Responsibilities are 
 | `keyboard_notifications_darwin.m` | Registry arrival/removal subscriptions and notification debounce |
 | `retry_darwin.m` | Main-thread one-shot retry timers |
 | `Info.plist`, `.clang-format` | Bundle metadata and native formatting rules |
+| `assets/AppIcon.png` | Source image for the app bundle's Finder icon |
 
 Application state and native callbacks run on the main OS thread; HID command execution runs in a Go worker. Each native source is compiled into the same executable; no separate runtime services or libraries were added.
 

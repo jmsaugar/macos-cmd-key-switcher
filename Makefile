@@ -15,6 +15,7 @@ build:
 	mkdir -p "$(APP)/Contents/MacOS"
 	$(GO) build -o "$(APP)/Contents/MacOS/cmd-key-switcher" ./src
 	cp src/Info.plist "$(APP)/Contents/Info.plist"
+	bash scripts/build-icon.sh src/assets/AppIcon.png "$(APP)/Contents/Resources/AppIcon.icns"
 	codesign --force --sign "$(SIGN_IDENTITY)" "$(APP)"
 test:
 	$(GO) test ./...
@@ -27,7 +28,7 @@ check:
 	@unformatted="$$($(GOFMT) -l $(GO_FILES))" || exit $$?; if [ -n "$$unformatted" ]; then echo "Go files need formatting:"; echo "$$unformatted"; exit 1; fi
 	$(CLANG_FORMAT) --dry-run --Werror $(NATIVE_FILES)
 	$(GO) vet ./...
-	bash -n scripts/setup.sh
+	bash -n scripts/setup.sh scripts/build-icon.sh
 	plutil -lint src/Info.plist
 	$(MAKE) analyze
 
