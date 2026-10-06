@@ -33,3 +33,6 @@ go.work.sum
 
 # Local macOS app bundles
 /build/
+
+# macOS Finder metadata
+.DS_Store
