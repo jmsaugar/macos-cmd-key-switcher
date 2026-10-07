@@ -27,10 +27,10 @@ After `make build`, copy `build/CmdKeySwitcher.app` into `/Applications` or `~/A
 
 Close an already-running app before replacing its bundle. Enable login startup from the app's Settings submenu if desired.
 
-The menu bar shows `⌘ mac` or `⊞ win`. The dropdown has two entries:
+The menu bar shows `⌘ Mac` or `⊞ Win`. The dropdown has two entries:
 
 ```text
-Switch to win   (or Switch to mac)
+Switch to Win keyboard  (or Switch to Mac keyboard)
 Settings ▸
     ✓ Launch at login
     ────────────────

@@ -24,8 +24,9 @@ static NSMenuItem *toggle;
 /** Reflects the applied mapping and any error in the menu bar UI. */
 void updateMenu(const char *mode, const char *error) {
     NSString *type = [NSString stringWithUTF8String:mode];
-    status.button.title = [type isEqualToString:@"mac"] ? @"⌘ mac" : @"⊞ win";
-    toggle.title = [type isEqualToString:@"mac"] ? @"Switch to win" : @"Switch to mac";
+    status.button.title = [type isEqualToString:@"mac"] ? @"⌘ Mac" : @"⊞ Win";
+    toggle.title =
+        [type isEqualToString:@"mac"] ? @"Switch to Win keyboard" : @"Switch to Mac keyboard";
     NSString *message = [NSString stringWithUTF8String:error];
     status.button.toolTip =
         message.length ? message : [NSString stringWithFormat:@"Keyboard mapping: %@", type];
@@ -41,7 +42,7 @@ void runApp(void) {
         controller = [Switcher new];
         status = [[NSStatusBar systemStatusBar] statusItemWithLength:NSVariableStatusItemLength];
         NSMenu *menu = [NSMenu new];
-        toggle = [[NSMenuItem alloc] initWithTitle:@"Switch to win"
+        toggle = [[NSMenuItem alloc] initWithTitle:@"Switch to Win keyboard"
                                             action:@selector(flip:)
                                      keyEquivalent:@""];
         toggle.target = controller;
