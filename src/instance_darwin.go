@@ -13,10 +13,8 @@ type instanceLock struct {
 	file *os.File
 }
 
-// acquireInstanceLock opens and exclusively locks the instance lock file without waiting.
-//
-// The parameter path is the lock file location.
-// It returns the held lock and nil, or nil and a directory, open, or locking error.
+// acquireInstanceLock opens path and acquires an exclusive, nonblocking file lock.
+// The caller must close the returned lock to release it.
 func acquireInstanceLock(path string) (*instanceLock, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		return nil, err
@@ -32,12 +30,9 @@ func acquireInstanceLock(path string) (*instanceLock, error) {
 	return &instanceLock{path, file}, nil
 }
 
-// A partial cleanup may remove the lock's pathname while its descriptor remains
-// locked. Reacquire the current pathname before allowing the app to resume.
 // restore reacquires the lock pathname if cleanup removed or replaced its file.
-//
-// The receiver lock is the currently held instance lock.
-// It returns nil when the pathname is locked, or a stat or reacquisition error.
+// An open descriptor can still lock an unlinked file, so the pathname must be
+// locked again before the app resumes after partial cleanup.
 func (lock *instanceLock) restore() error {
 	held, err := lock.file.Stat()
 	if err != nil {
@@ -55,9 +50,5 @@ func (lock *instanceLock) restore() error {
 	return nil
 }
 
-// close releases the held instance lock by closing its file.
-//
-// The receiver lock is the instance lock to release.
-//
-// File close errors are ignored.
+// close releases the instance lock by closing its file.
 func (lock *instanceLock) close() { lock.file.Close() }

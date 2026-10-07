@@ -1,15 +1,8 @@
 #include "native.h"
 #import <Cocoa/Cocoa.h>
 
-/**
- * @brief Forwards the native close action to the active application on the main thread.
- */
 extern void appClose(void);
 
-/**
- * @brief Forwards confirmed native cleanup to the active application on the
- * main thread.
- */
 extern void appPrepareForUninstall(void);
 
 @interface SettingsController : NSObject <NSMenuDelegate>
@@ -18,30 +11,18 @@ extern void appPrepareForUninstall(void);
 
 @implementation SettingsController
 
-/**
- * @brief Refreshes launch-at-login status before the settings menu opens.
- *
- * @param menu The unused menu being updated.
- */
+/** Refreshes the launch-at-login state before the settings submenu is displayed. */
 - (void)menuNeedsUpdate:(NSMenu *)menu {
     refreshLoginStartupItem(self.startupItem);
 }
 
-/**
- * @brief Toggles login startup and refreshes the associated menu item.
- *
- * @param sender The unused menu action source.
- */
+/** Handles the startup action and refreshes the menu item from the resulting OS state. */
 - (void)toggleStartup:(id)sender {
     toggleLoginStartup();
     refreshLoginStartupItem(self.startupItem);
 }
 
-/**
- * @brief Asks for confirmation before invoking Go cleanup.
- *
- * @param sender The unused menu action source.
- */
+/** Confirms the cleanup action before asking Go to prepare the app for removal. */
 - (void)prepareForUninstall:(id)sender {
     NSAlert *alert = [NSAlert new];
     alert.messageText = @"Prepare for uninstall?";
@@ -57,21 +38,13 @@ extern void appPrepareForUninstall(void);
         appPrepareForUninstall();
 }
 
-/**
- * @brief Forwards the close menu action to Go.
- *
- * @param sender The unused menu action source.
- */
+/** Asks Go to close the app while preserving its preferences and startup registration. */
 - (void)closeApp:(id)sender {
     appClose();
 }
 @end
 
-/**
- * @brief Creates the settings menu and retains its controller for callbacks.
- *
- * @return The settings submenu managed by ARC.
- */
+/** Builds the settings submenu and retains its controller for menu callbacks. */
 NSMenu *settingsMenu(void) {
     // NSMenu delegates and item targets are weak references.
     static SettingsController *controller;
@@ -98,13 +71,7 @@ NSMenu *settingsMenu(void) {
     return menu;
 }
 
-/**
- * @brief Shows a modal warning alert on the main thread.
- *
- * @param message The UTF-8 error text.
- *
- * @note Returns after the alert is dismissed.
- */
+/** Presents a modal warning with the supplied application error. */
 void showAppError(const char *message) {
     NSAlert *alert = [NSAlert new];
     alert.messageText = @"CmdKeySwitcher";

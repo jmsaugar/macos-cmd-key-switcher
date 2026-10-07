@@ -3,12 +3,7 @@
 #import <ServiceManagement/ServiceManagement.h>
 #include <string.h>
 
-/**
- * @brief Updates the launch-at-login menu item from ServiceManagement
- * status.
- *
- * @param item The menu item whose title, state, and tooltip are updated.
- */
+/** Displays the OS registration state, including any requirement for user approval. */
 void refreshLoginStartupItem(NSMenuItem *item) {
     SMAppServiceStatus state = SMAppService.mainAppService.status;
     item.title = @"Launch at login";
@@ -23,14 +18,7 @@ void refreshLoginStartupItem(NSMenuItem *item) {
     }
 }
 
-// Idempotent cleanup: absence of a registration is already the desired state.
-
-/**
- * @brief Removes launch-at-login registration, treating an absent
- * registration as success.
- *
- * @return NULL on success, or an allocated UTF-8 error message that the caller must free.
- */
+/** Removes main-app startup registration, returning an allocated error message on failure. */
 char *unregisterLoginStartup(void) {
     SMAppService *service = SMAppService.mainAppService;
     if (service.status == SMAppServiceStatusNotRegistered)
@@ -42,12 +30,7 @@ char *unregisterLoginStartup(void) {
         (error.localizedDescription ?: @"Could not unregister login startup.").UTF8String);
 }
 
-/**
- * @brief Prompts for login-item approval and handles the selected settings or
- * disable action.
- *
- * @note Returns after the modal prompt and selected action finish.
- */
+/** Offers System Settings or unregistration when launch at login requires approval. */
 static void requestApproval(void) {
     NSAlert *alert = [NSAlert new];
     alert.messageText = @"Launch at login needs approval";
@@ -69,11 +52,7 @@ static void requestApproval(void) {
     }
 }
 
-/**
- * @brief Toggles launch-at-login registration or prompts when approval is
- * required.
- *
- * @note Registration errors are shown in an alert.
+/** Changes main-app startup registration or handles pending approval, reporting errors in the UI.
  */
 void toggleLoginStartup(void) {
     SMAppService *service = SMAppService.mainAppService;

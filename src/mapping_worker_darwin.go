@@ -4,24 +4,22 @@ package main
 
 import "log"
 
+// mappingRequest is a device snapshot and desired mode copied for worker execution.
 type mappingRequest struct {
 	mode      string
 	devices   []Keyboard
 	automatic bool
 	signature string
 }
+
+// mappingResult carries command completion back to the main thread.
 type mappingResult struct {
 	request mappingRequest
 	err     error
 }
 
-// These queue fields belong to the main thread. Only the result channel crosses
-// threads; workers never read application state or invoke Cocoa directly.
-
-// requestedType finds the latest requested mode, falling back to the applied mode.
-//
-// The receiver a supplies pending, active, and applied mapping state.
-// It returns the pending mode, active mode, or configured mode, in that order.
+// requestedType returns the pending mode, then the active mode, or the applied
+// mode when neither request exists.
 func (a *App) requestedType() string {
 	if a.pendingMapping != nil {
 		return a.pendingMapping.mode
@@ -32,12 +30,9 @@ func (a *App) requestedType() string {
 	return a.config.Type
 }
 
-// requestMapping starts a mapping or replaces the pending request while a command is active.
-//
-// The parameter mode is the target; devices supplies preferences to remember; automatic enables retries on
-// failure; a owns the queue.
-//
-// Requests are ignored during shutdown.
+// requestMapping copies the device snapshot and queues mode unless stopping.
+// Only one command runs at a time; a newer request replaces waiting work.
+// The automatic flag enables retries for an unsuperseded command failure.
 func (a *App) requestMapping(mode string, devices []Keyboard, automatic bool) {
 	if a.stopping {
 		return
@@ -53,26 +48,22 @@ func (a *App) requestMapping(mode string, devices []Keyboard, automatic bool) {
 	a.deps.startMapping(request)
 }
 
-// launchMapping runs a copied mapping request in a worker and signals its result.
-//
-// The parameter request contains the mode, devices, origin, and signature; a supplies worker dependencies.
-//
-// Completion arrives asynchronously through mappingResults.
+// launchMapping captures the request and worker dependencies on the main thread,
+// then executes the command in a goroutine. The worker sends its result before
+// signaling completion and never reads mutable App state.
 func (a *App) launchMapping(request mappingRequest) {
 	execute := a.deps.executeMapping
 	signal := a.deps.signalMappingComplete
 	results := a.mappingResults
-	// Callback executes the copied request, sends its result, and signals completion.
 	go func() {
 		results <- mappingResult{request, execute(request.mode)}
 		signal()
 	}()
 }
 
-// Called on the main thread after dispatching completion through Cocoa.
-// finishMapping handles a completed mapping on the main thread, including shutdown coordination.
-//
-// The parameter result contains the executed request and its error; a owns application state.
+// finishMapping handles a worker result on the main thread.
+// During normal close it preserves the active result; during cleanup it skips
+// persistence so completed work cannot recreate deleted configuration.
 func (a *App) finishMapping(result mappingResult) {
 	if a.stopping {
 		a.activeMapping = nil
@@ -90,11 +81,10 @@ func (a *App) finishMapping(result mappingResult) {
 	a.completeMapping(result)
 }
 
-// completeMapping records a mapping result, persists successful choices, and starts pending work.
-//
-// The parameter result contains the executed request and its error; a owns preferences and the queue.
-//
-// Errors are logged and displayed in the menu.
+// completeMapping updates the applied mode after command success and saves config.
+// Only an unsuperseded request can teach device preferences or schedule a command
+// retry. A save failure is reported without rolling back the applied mapping.
+// If another request is pending, it starts after this result is processed.
 func (a *App) completeMapping(result mappingResult) {
 	next := a.pendingMapping
 	a.activeMapping, a.pendingMapping = nil, nil

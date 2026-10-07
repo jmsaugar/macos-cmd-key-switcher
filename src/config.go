@@ -7,23 +7,23 @@ import (
 	"path/filepath"
 )
 
+// Config stores the last applied mode and manually learned keyboard classifications.
+// Startup detection uses the classifications and can replace the saved mode.
 type Config struct {
+	// Type is the last successfully applied mapping: "mac" or "win".
 	Type string `json:"type"`
-	// Keys are vendor:product or vendor:product:serial:<escaped serial>.
+	// KeyboardTypes maps decimal vendor:product or vendor:product:serial:<URL-escaped serial>
+	// keys to "mac" or "win". Serial-based overrides take precedence over model overrides.
 	KeyboardTypes map[string]string `json:"keyboard_types"`
 }
 
-// defaults creates the default mac mapping configuration with an empty preference map.
-// It returns a fresh default configuration.
+// defaults returns a mac configuration with a new, empty keyboard preference map.
 func defaults() Config {
 	return Config{Type: "mac", KeyboardTypes: map[string]string{}}
 }
 
-// loadConfig loads and validates keyboard preferences, using defaults when the file is absent.
-//
-// The parameter path is the JSON config file location.
-// It returns the configuration and nil on success, or the current configuration and a read,
-// decode, or validation error.
+// loadConfig reads and validates path, returning defaults if the file is absent.
+// On error, the returned configuration may be partially populated and must not be used.
 func loadConfig(path string) (Config, error) {
 	c := defaults()
 	data, err := os.ReadFile(path)
@@ -47,10 +47,8 @@ func loadConfig(path string) (Config, error) {
 	return c, nil
 }
 
-// saveConfig atomically saves configuration through a temporary file in the destination directory.
-//
-// The parameter path is the destination file; c is the configuration to serialize.
-// It returns nil on success, or a directory, serialization, write, close, or rename error.
+// saveConfig writes c as JSON to a temporary file in the destination directory
+// and atomically renames it over path. It returns the first error encountered.
 func saveConfig(path string, c Config) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		return err

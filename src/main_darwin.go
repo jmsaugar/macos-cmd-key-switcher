@@ -1,5 +1,8 @@
 //go:build darwin && cgo
 
+// CmdKeySwitcher selects a global keyboard modifier mapping from connected
+// keyboards and saved device preferences. Its menu supports manual switching,
+// optional launch at login, and cleanup before uninstalling.
 package main
 
 import (
@@ -10,11 +13,9 @@ import (
 	"runtime"
 )
 
-// main loads preferences, locks the instance, opens logging, and runs the menu bar application.
-//
-// Command-line arguments are validated through flag parsing.
-//
-// Startup failures terminate the process.
+// main loads preferences, acquires the instance lock, and runs the native UI.
+// It locks the main goroutine to its OS thread before calling Cocoa.
+// Startup errors terminate the process.
 func main() {
 	runtime.LockOSThread()
 	home, err := os.UserHomeDir()
@@ -41,13 +42,12 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	// Callback closes the current log file when main returns.
+	// Cleanup recovery can replace logFile; close the current file on return.
 	defer func() { logFile.Close() }()
 	log.SetOutput(io.MultiWriter(os.Stderr, logFile))
 	app := newApp(configPath, config)
 	app.logsPath = logsDirectory(home)
-	// Callback restores the instance lock and log destination after partial cleanup.
-	// It returns nil on success, or a lock restoration or log opening error.
+	// Partial cleanup can unlink files while their old descriptors remain open.
 	app.deps.recoverAfterCleanup = func() error {
 		if err := lock.restore(); err != nil {
 			return err

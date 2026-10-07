@@ -6,10 +6,6 @@ import (
 )
 
 // TestDetection verifies that device types and saved overrides select the expected mapping.
-//
-// The parameter t runs the test and reports assertion failures.
-//
-// Failures are reported through t.
 func TestDetection(t *testing.T) {
 	c := defaults()
 	cases := []struct {
@@ -24,9 +20,6 @@ func TestDetection(t *testing.T) {
 		{"mixed", []Keyboard{{Vendor: 1452}, {Vendor: 123}}, "win"},
 	}
 	for _, tc := range cases {
-		// Callback checks the detected mapping for the current table case.
-		//
-		// The parameter t reports failures for this subtest.
 		t.Run(tc.name, func(t *testing.T) {
 			if got := detectedType(tc.devices, c); got != tc.want {
 				t.Fatalf("got %s want %s", got, tc.want)
@@ -41,10 +34,6 @@ func TestDetection(t *testing.T) {
 
 // TestFingerprint verifies that device signatures ignore enumeration order and distinguish
 // devices.
-//
-// The parameter t runs the test and reports assertion failures.
-//
-// Failures are reported through t.
 func TestFingerprint(t *testing.T) {
 	a := Keyboard{ID: "a", Vendor: 1}
 	b := Keyboard{ID: "b", Vendor: 2}
@@ -58,10 +47,6 @@ func TestFingerprint(t *testing.T) {
 
 // TestUnitOverridesAndModelFallback verifies that unit preferences override model defaults and
 // persist without affecting other units.
-//
-// The parameter t runs the test and reports assertion failures.
-//
-// Failures are reported through t.
 func TestUnitOverridesAndModelFallback(t *testing.T) {
 	a := Keyboard{Vendor: 1234, ProductID: 5678, Serial: "A /:1"}
 	b := a

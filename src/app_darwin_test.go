@@ -6,10 +6,6 @@ import "testing"
 
 // TestAppsOwnIndependentStateAndDependencies verifies that application instances keep state and
 // dependencies independent.
-//
-// The parameter t runs the test and reports assertion failures.
-//
-// Failures are reported through t.
 func TestAppsOwnIndependentStateAndDependencies(t *testing.T) {
 	t.Parallel()
 	a, b := testApp(t), testApp(t)
@@ -22,10 +18,6 @@ func TestAppsOwnIndependentStateAndDependencies(t *testing.T) {
 		t.Fatal("preferences leaked between instances")
 	}
 	saved := false
-	// Callback records a successful configuration save.
-	//
-	// The config path and configuration (unused by this stub).
-	// It returns nil to simulate success.
 	b.deps.saveConfig = func(string, Config) error { saved = true; return nil }
 	b.requestMapping("win", nil, false)
 	if !saved || a.config.Type != "mac" {
@@ -34,10 +26,6 @@ func TestAppsOwnIndependentStateAndDependencies(t *testing.T) {
 }
 
 // TestAppCopiesInitialPreferences verifies that an application copies its initial preference map.
-//
-// The parameter t runs the test and reports assertion failures.
-//
-// Failures are reported through t.
 func TestAppCopiesInitialPreferences(t *testing.T) {
 	t.Parallel()
 	config := defaults()

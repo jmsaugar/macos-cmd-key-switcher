@@ -5,12 +5,7 @@ import (
 	"testing"
 )
 
-// TestConfigRoundTrip verifies that configuration defaults and saved preferences round-trip
-// through disk.
-//
-// The parameter t runs the test and reports assertion failures.
-//
-// Failures are reported through t.
+// TestConfigRoundTrip verifies that saved mode and preferences survive a reload.
 func TestConfigRoundTrip(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "nested", "config.json")
 	c, err := loadConfig(path)

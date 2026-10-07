@@ -8,26 +8,23 @@ import (
 	"strings"
 )
 
+// Keyboard holds metadata for one primary keyboard HID service in IORegistry.
+// A physical device may expose multiple services with the same vendor, product, and serial.
 type Keyboard struct {
-	ID        string `json:"id"`
-	Product   string `json:"product"`
-	Vendor    int    `json:"vendor"`
-	ProductID int    `json:"product_id"`
-	BuiltIn   bool   `json:"built_in"`
-	Serial    string `json:"serial,omitempty"`
+	ID        string `json:"id"`               // Transient IORegistry entry ID.
+	Product   string `json:"product"`          // Device-supplied name or a fallback label.
+	Vendor    int    `json:"vendor"`           // HID vendor ID; zero if unavailable.
+	ProductID int    `json:"product_id"`       // HID product ID; zero if unavailable.
+	BuiltIn   bool   `json:"built_in"`         // Inferred from Built-In or SPI/i2c transport.
+	Serial    string `json:"serial,omitempty"` // Device-supplied serial, possibly absent or nonunique.
 }
 
-// modelKey builds the preference key shared by a keyboard model.
-//
-// The parameter k supplies the vendor and product identifiers.
-// It returns the vendor:product key.
+// modelKey returns the decimal vendor:product preference key for k.
 func modelKey(k Keyboard) string { return fmt.Sprintf("%d:%d", k.Vendor, k.ProductID) }
 
-// unitKey builds a preference key for a keyboard with a nonblank serial number.
-//
-// The parameter k supplies model identifiers and the serial number.
-// It returns the model key with an escaped serial suffix, or an empty string if no serial is
-// available.
+// unitKey returns a model key with a URL-escaped, trimmed serial suffix.
+// It returns an empty string when k has no nonblank serial number. Device-supplied
+// serials are not guaranteed to be unique or stable.
 func unitKey(k Keyboard) string {
 	serial := strings.TrimSpace(k.Serial)
 	if serial == "" {
@@ -36,10 +33,8 @@ func unitKey(k Keyboard) string {
 	return modelKey(k) + ":serial:" + url.QueryEscape(serial)
 }
 
-// rememberKeyboards stores the selected mode for external keyboards, preferring unit keys over
-// model keys.
-//
-// The parameter c is the configuration to mutate; devices is the snapshot; mode is the selected mapping.
+// rememberKeyboards records mode for every external keyboard in devices,
+// using a serial-based key when available and a model key otherwise.
 func rememberKeyboards(c *Config, devices []Keyboard, mode string) {
 	for _, k := range devices {
 		if k.BuiltIn {
@@ -56,10 +51,9 @@ func rememberKeyboards(c *Config, devices []Keyboard, mode string) {
 	}
 }
 
-// detectedType selects a mapping using unit preferences, model preferences, and vendor defaults.
-//
-// The parameter devices is the keyboard snapshot; c supplies saved preferences.
-// It returns win if any external keyboard prefers it; otherwise mac.
+// detectedType returns "win" if any external keyboard is classified as Windows,
+// and "mac" otherwise, including when no external keyboards are connected.
+// Serial-based overrides take precedence over model overrides, then vendor defaults.
 func detectedType(devices []Keyboard, c Config) string {
 	for _, k := range devices {
 		if k.BuiltIn {
@@ -83,10 +77,9 @@ func detectedType(devices []Keyboard, c Config) string {
 	return "mac"
 }
 
-// fingerprint creates a stable device signature independent of enumeration order.
-//
-// The parameter devices is the keyboard snapshot to identify.
-// It returns a JSON string of sorted device identity keys.
+// fingerprint returns an enumeration-order-independent signature of devices.
+// It includes transient registry IDs so reconnecting a device can change the signature;
+// it is not a persistent device identifier.
 func fingerprint(devices []Keyboard) string {
 	keys := make([]string, 0, len(devices))
 	for _, k := range devices {

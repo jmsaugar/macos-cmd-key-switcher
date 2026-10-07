@@ -5,13 +5,7 @@
 #import <IOKit/hid/IOHIDUsageTables.h>
 #include <stdlib.h>
 
-/**
- * @brief Checks whether a registry entry has a primary keyboard HID usage.
- *
- * @param properties The device registry property dictionary.
- *
- * @return YES for a primary keyboard usage, otherwise NO.
- */
+/** Identifies devices whose primary HID usage is a keyboard. */
 static BOOL isKeyboard(NSDictionary *properties) {
     // Auxiliary keyboard collections can exist on media peripherals (including
     // devices that advertise a full key range). Require the primary function
@@ -20,11 +14,7 @@ static BOOL isKeyboard(NSDictionary *properties) {
            [properties[@(kIOHIDPrimaryUsageKey)] intValue] == kHIDUsage_GD_Keyboard;
 }
 
-/**
- * @brief Enumerates keyboard registry metadata without opening input devices.
- *
- * @return An allocated UTF-8 JSON snapshot, or NULL on failure; the caller must free the string.
- */
+/** Serializes keyboard registry metadata for Go, returning NULL if the snapshot fails. */
 char *keyboardJSON(void) {
     @autoreleasepool {
         // Read registry metadata only: no HID clients, device opens, or input queues.

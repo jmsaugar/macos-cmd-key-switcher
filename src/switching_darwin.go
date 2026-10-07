@@ -6,20 +6,15 @@ import (
 	"log"
 )
 
-// Application selection and errors; accessed only on the main OS thread.
-
-// automaticType requests an automatic mapping with retries enabled on failure.
-//
-// The parameter mode is the target mapping; a owns the request queue.
+// automaticType queues an automatic mapping; an unsuperseded command failure
+// can schedule a bounded retry.
 func (a *App) automaticType(mode string) {
 	a.requestMapping(mode, nil, true)
 }
 
-// switchKeyboard toggles the latest requested mode and captures connected-device preferences.
-//
-// The receiver a supplies current selection and device dependencies.
-//
-// Enumeration errors are logged and displayed in the menu.
+// switchKeyboard toggles the latest requested mode using a fresh device snapshot.
+// External-device preferences are saved only after a successful, unsuperseded
+// command. Enumeration failure leaves the selection unchanged.
 func (a *App) switchKeyboard() {
 	if a.stopping {
 		return

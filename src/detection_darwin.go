@@ -2,11 +2,7 @@
 
 package main
 
-// Connected-device state and automatic selection orchestration.
-
-// keyboardChanged refreshes the menu and restarts device detection unless shutdown is underway.
-//
-// The receiver a is the application handling the event.
+// keyboardChanged resets the retry budget and enumerates devices unless stopping.
 func (a *App) keyboardChanged() {
 	if a.stopping {
 		return
@@ -16,17 +12,15 @@ func (a *App) keyboardChanged() {
 	a.detectDevices()
 }
 
-// keyboardWake forces mapping reapplication after wake and triggers device detection.
-//
-// The receiver a is the application handling wake.
+// keyboardWake requests reapplication of the latest desired mode after wake.
+// If the device signature changed, detection chooses a new mode instead.
 func (a *App) keyboardWake() {
 	a.forceRefresh = true
 	a.keyboardChanged()
 }
 
-// detectDevices enumerates keyboards and updates selection, scheduling a retry on failure.
-//
-// The receiver a supplies the device reader and selection state.
+// detectDevices enumerates keyboards and updates selection, scheduling a retry
+// if enumeration fails.
 func (a *App) detectDevices() {
 	devices, err := a.deps.readKeyboards()
 	if err != nil {
@@ -38,9 +32,9 @@ func (a *App) detectDevices() {
 	a.updateDevices(devices)
 }
 
-// updateDevices tracks the device fingerprint and selects or reapplies a mapping when needed.
-//
-// The parameter devices is the latest snapshot; a holds preferences and prior observations.
+// updateDevices selects a mode when the device signature changes.
+// A forced refresh with the same signature reapplies the latest desired mode,
+// preserving a manual selection.
 func (a *App) updateDevices(devices []Keyboard) {
 	signature := fingerprint(devices)
 	changed := signature != a.lastDevices

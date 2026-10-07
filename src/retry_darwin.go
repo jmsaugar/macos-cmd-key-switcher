@@ -6,23 +6,14 @@ import (
 	"log"
 )
 
-// Bounded automatic retry orchestration. Native one-shot timers call retryAutomatic.
-
-// resetRetries cancels any scheduled retry and resets the automatic retry budget and mode.
-//
-// The receiver a owns the retry state.
+// resetRetries cancels the retry timer and resets the retry budget and mode.
 func (a *App) resetRetries() {
 	a.deps.cancelAutomaticRetry()
 	a.retries = retryBudget{}
 	a.retryMode = ""
 }
 
-// queueRetry schedules the next automatic retry if the budget permits and shutdown has not
-// started.
-//
-// The receiver a supplies the retry budget and timer dependency.
-//
-// Budget exhaustion is logged.
+// queueRetry schedules the next retry unless stopping or the budget is exhausted.
 func (a *App) queueRetry() {
 	if a.stopping {
 		return
@@ -34,9 +25,8 @@ func (a *App) queueRetry() {
 	}
 }
 
-// retryAutomatic retries a failed automatic mapping or device detection unless stopping.
-//
-// The receiver a supplies the retry mode and device state.
+// retryAutomatic retries the failed automatic mapping, or repeats device
+// enumeration if no mapping retry is pending. It does nothing during shutdown.
 func (a *App) retryAutomatic() {
 	if a.stopping {
 		return

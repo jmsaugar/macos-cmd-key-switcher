@@ -15,33 +15,26 @@ import (
 	"unsafe"
 )
 
-// All Go/native conversions and callbacks live here.
-// AppKit supports one running application. Only the bridge holds this pointer;
-// tests create independent App instances and do not replace it.
+// nativeApp binds the one AppKit application to the Go callbacks in both bridges.
+// It is read and written only on the main OS thread. Tests use independent App
+// instances without replacing this binding.
 var nativeApp *App
 
-// runNativeApp binds the application to native callbacks and runs the Cocoa event loop.
-//
-// The receiver a is the application receiving callbacks.
-// It returns after the native event loop stops.
+// runNativeApp binds a to native callbacks until the Cocoa event loop returns.
+// It must be called on the main OS thread.
 func runNativeApp(a *App) {
 	nativeApp = a
-	// Callback clears the active native application binding after the event loop exits.
 	defer func() { nativeApp = nil }()
 	C.runApp()
 }
 
-// scheduleNativeRetry schedules a native one-shot retry timer.
-//
-// The parameter seconds is the delay before the retry callback.
+// scheduleNativeRetry schedules a one-shot callback with a delay in seconds.
 func scheduleNativeRetry(seconds int) { C.scheduleRetry(C.double(seconds)) }
 
 // cancelNativeRetry cancels the native retry timer.
 func cancelNativeRetry() { C.cancelRetry() }
 
-// nativeUpdateMenu passes the current mapping and error to the Cocoa menu.
-//
-// The parameter modeValue is the applied mode; errorValue is the error text or an empty string.
+// nativeUpdateMenu sends the applied mode and optional error text to Cocoa.
 func nativeUpdateMenu(modeValue, errorValue string) {
 	mode := C.CString(modeValue)
 	defer C.free(unsafe.Pointer(mode))
@@ -50,8 +43,8 @@ func nativeUpdateMenu(modeValue, errorValue string) {
 	C.updateMenu(mode, message)
 }
 
-// connectedKeyboards reads and decodes the native keyboard registry snapshot.
-// It returns connected keyboards and nil, or nil and an enumeration or JSON decoding error.
+// connectedKeyboards reads and decodes keyboard registry metadata.
+// Enumeration and JSON decoding failures return an error.
 func connectedKeyboards() ([]Keyboard, error) {
 	raw := C.keyboardJSON()
 	if raw == nil {
@@ -65,7 +58,7 @@ func connectedKeyboards() ([]Keyboard, error) {
 	return devices, nil
 }
 
-// appTick forwards a native device notification to the active application on the main thread.
+// appTick handles startup and debounced HID service notifications on the main thread.
 //
 //export appTick
 func appTick() {
@@ -74,7 +67,7 @@ func appTick() {
 	}
 }
 
-// appSwitch forwards a native manual switch action to the active application on the main thread.
+// appSwitch forwards a manual menu switch to the active app on the main thread.
 //
 //export appSwitch
 func appSwitch() {
@@ -83,7 +76,7 @@ func appSwitch() {
 	}
 }
 
-// appWake forwards a native wake notification to the active application on the main thread.
+// appWake forwards a workspace wake notification on the main thread.
 //
 //export appWake
 func appWake() {
@@ -92,7 +85,7 @@ func appWake() {
 	}
 }
 
-// appRetry forwards a native retry timer callback to the active application on the main thread.
+// appRetry forwards a one-shot retry timer callback on the main thread.
 //
 //export appRetry
 func appRetry() {
@@ -101,9 +94,8 @@ func appRetry() {
 	}
 }
 
-// appMappingComplete receives a worker result and finishes its mapping on the main thread.
-//
-// Waits for the signaled result when an application is active.
+// appMappingComplete receives an already-enqueued worker result on the main thread
+// and forwards it to the active app. The worker must send before signaling this callback.
 //
 //export appMappingComplete
 func appMappingComplete() {
@@ -112,5 +104,6 @@ func appMappingComplete() {
 	}
 }
 
-// notifyMappingComplete dispatches a worker completion notification to the native main thread.
+// notifyMappingComplete can be called by a worker to enqueue a native main-thread
+// completion callback after sending its result.
 func notifyMappingComplete() { C.notifyMappingComplete() }

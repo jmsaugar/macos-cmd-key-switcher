@@ -2,7 +2,8 @@
 
 package main
 
-// App owns mutable application state. Its methods run on the main OS thread.
+// App owns mutable application state. Runtime state transitions belong to the
+// main OS thread; concurrent method calls are not safe.
 // Workers receive copied requests and return results through mappingResults.
 type App struct {
 	config                Config
@@ -21,6 +22,8 @@ type App struct {
 	logsPath             string
 }
 
+// appDependencies binds native operations and command execution per App instance.
+// Tests replace these operations without changing package globals.
 type appDependencies struct {
 	readKeyboards          func() ([]Keyboard, error)
 	executeMapping         func(string) error
@@ -40,10 +43,8 @@ type appDependencies struct {
 	showError              func(string)
 }
 
-// newApp creates an application with independent preferences and native dependencies.
-//
-// The parameter path is the config file location; config supplies the initial preferences.
-// It returns the initialized application.
+// newApp copies the initial preferences and binds production dependencies.
+// The caller must bind cleanup recovery to the startup resources before running the app.
 func newApp(path string, config Config) *App {
 	// Take ownership of preferences instead of sharing the caller's map.
 	preferences := make(map[string]string, len(config.KeyboardTypes))
@@ -58,8 +59,6 @@ func newApp(path string, config Config) *App {
 		scheduleAutomaticRetry: scheduleNativeRetry, cancelAutomaticRetry: cancelNativeRetry,
 		startMapping: a.launchMapping, signalMappingComplete: notifyMappingComplete,
 		unregisterStartup: nativeUnregisterStartup, removeUserData: a.removeUserData,
-		// Callback provides a successful recovery placeholder until main binds startup resources.
-		// It returns nil to simulate success.
 		recoverAfterCleanup: func() error { return nil }, // Bound to startup resources by main.
 		stopWatching:        stopNativeWatching, resumeWatching: resumeNativeWatching,
 		setMenuEnabled: nativeSetMenuEnabled, quit: stopNativeApp, showError: nativeShowError,
@@ -67,14 +66,11 @@ func newApp(path string, config Config) *App {
 	return a
 }
 
-// refreshMenu updates the menu with the applied mode and latest error.
-//
-// The receiver a is the application whose state is displayed.
+// refreshMenu displays the applied mode and latest error.
 func (a *App) refreshMenu() { a.deps.updateMenu(a.config.Type, a.lastError) }
 
-// close cancels retries and discards pending mapping work.
-//
-// The receiver a is the application to stop scheduling work for.
+// close cancels retries and discards pending mappings. It does not wait for
+// an active command, release the instance lock, or stop the native event loop.
 func (a *App) close() {
 	a.deps.cancelAutomaticRetry()
 	a.pendingMapping = nil

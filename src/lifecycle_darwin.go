@@ -9,12 +9,9 @@ import (
 	"path/filepath"
 )
 
-// Called only after the UI confirms the cleanup action.
-// prepareForUninstall disables login startup and begins cleanup after UI confirmation.
-//
-// The receiver a is the application to clean up.
-//
-// Startup errors are shown and leave the application running.
+// prepareForUninstall unregisters login startup, then begins cleanup.
+// The caller must obtain UI confirmation first. Unregistration failure reports
+// an error and leaves the running app and its data intact.
 func (a *App) prepareForUninstall() {
 	if a.stopping {
 		return
@@ -27,14 +24,12 @@ func (a *App) prepareForUninstall() {
 	a.beginShutdown(true)
 }
 
-// closeApp begins normal shutdown while preserving user data.
-//
-// The receiver a is the application to close.
+// closeApp begins shutdown without unregistering login startup or deleting user data.
 func (a *App) closeApp() { a.beginShutdown(false) }
 
-// beginShutdown stops new work and waits for any active mapping before finishing shutdown.
-//
-// The parameter cleanup selects whether to remove user data; a is the application to stop.
+// beginShutdown stops device watching and retries, disables menu actions, and
+// discards pending mappings. An active command must finish before shutdown
+// continues; cleanup selects whether to delete user data.
 func (a *App) beginShutdown(cleanup bool) {
 	if a.stopping {
 		return
@@ -48,12 +43,10 @@ func (a *App) beginShutdown(cleanup bool) {
 	}
 }
 
-// finishShutdown completes cleanup and exits, or restores operation after a recoverable cleanup
-// failure.
-//
-// The receiver a holds the shutdown state and resource dependencies.
-//
-// Failures are displayed through the application error handler.
+// finishShutdown removes user data when requested and stops the native event loop.
+// It must be called only after active mapping work has finished. On cleanup
+// failure it restores resources and resumes operation; if recovery fails, it
+// reports the error and closes instead.
 func (a *App) finishShutdown() {
 	if a.cleaningUp {
 		if err := a.deps.removeUserData(); err != nil {
@@ -76,10 +69,8 @@ func (a *App) finishShutdown() {
 	a.deps.quit()
 }
 
-// removeUserData removes the application log and configuration directories.
-//
-// The receiver a supplies the log and config paths.
-// It returns nil on success, or the first removal error annotated with its path.
+// removeUserData removes the log directory, then the configuration directory.
+// It returns the first removal error with its path; earlier removals are not rolled back.
 func (a *App) removeUserData() error {
 	for _, path := range []string{a.logsPath, filepath.Dir(a.configPath)} {
 		if path == "" {

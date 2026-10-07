@@ -12,8 +12,8 @@ import (
 	"unsafe"
 )
 
-// nativeUnregisterStartup removes the native launch-at-login registration.
-// It returns nil on success, or the error reported by ServiceManagement.
+// nativeUnregisterStartup removes login startup registration, treating an absent
+// registration as success. It converts and frees any native error message.
 func nativeUnregisterStartup() error {
 	message := C.unregisterLoginStartup()
 	if message == nil {
@@ -23,10 +23,7 @@ func nativeUnregisterStartup() error {
 	return errors.New(C.GoString(message))
 }
 
-// nativeShowError displays a native modal error alert.
-//
-// The parameter message is the error text to show.
-// It returns when the alert is dismissed.
+// nativeShowError displays message in a modal warning and returns when dismissed.
 func nativeShowError(message string) {
 	value := C.CString(message)
 	defer C.free(unsafe.Pointer(value))
@@ -36,18 +33,16 @@ func nativeShowError(message string) {
 // stopNativeWatching releases native keyboard notification resources.
 func stopNativeWatching() { C.endKeyboardWatching() }
 
-// resumeNativeWatching reenables keyboard watching and attempts to install native notifications.
+// resumeNativeWatching reenables device watching and attempts to install notifications.
 func resumeNativeWatching() {
 	C.beginKeyboardWatching()
 	C.ensureKeyboardWatching()
 }
 
-// stopNativeApp requests that the Cocoa event loop stop.
+// stopNativeApp requests that the Cocoa event loop return.
 func stopNativeApp() { C.stopApp() }
 
-// nativeSetMenuEnabled sets whether top-level native menu items accept actions.
-//
-// The parameter enabled selects the menu enabled state.
+// nativeSetMenuEnabled enables or disables the top-level menu items.
 func nativeSetMenuEnabled(enabled bool) {
 	value := C.int(0)
 	if enabled {
@@ -56,7 +51,7 @@ func nativeSetMenuEnabled(enabled bool) {
 	C.setMenuEnabled(value)
 }
 
-// appClose forwards the native close action to the active application on the main thread.
+// appClose forwards the menu close action on the main thread.
 //
 //export appClose
 func appClose() {
@@ -65,8 +60,7 @@ func appClose() {
 	}
 }
 
-// appPrepareForUninstall forwards confirmed native cleanup to the active application on the main
-// thread.
+// appPrepareForUninstall forwards confirmed cleanup on the main thread.
 //
 //export appPrepareForUninstall
 func appPrepareForUninstall() {

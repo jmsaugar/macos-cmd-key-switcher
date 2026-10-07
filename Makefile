@@ -35,5 +35,5 @@ check:
 analyze:
 	mkdir -p build
 	@set -e; for source in $(NATIVE_SOURCES); do \
-		xcrun clang --analyze -x objective-c -fobjc-arc -mmacosx-version-min=13.0 -Wall -Wextra -Werror -Wno-unused-parameter -Xanalyzer -analyzer-werror "$$source" -o "build/$$(basename "$$source" .m)-analysis.plist"; \
+		xcrun clang --analyze -x objective-c -fobjc-arc -mmacosx-version-min=13.0 -Wall -Wextra -Wdocumentation -Wdocumentation-pedantic -Werror -Wno-unused-parameter -Xanalyzer -analyzer-werror "$$source" -o "build/$$(basename "$$source" .m)-analysis.plist"; \
 	done

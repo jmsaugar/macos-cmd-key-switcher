@@ -7,13 +7,13 @@ import (
 	"time"
 )
 
+// macMapping maps left Option and left Command to themselves.
 const macMapping = `{"UserKeyMapping":[{"HIDKeyboardModifierMappingSrc":30064771298,"HIDKeyboardModifierMappingDst":30064771298},{"HIDKeyboardModifierMappingSrc":30064771299,"HIDKeyboardModifierMappingDst":30064771299}]}`
+
+// winMapping swaps left Command and left Option.
 const winMapping = `{"UserKeyMapping":[{"HIDKeyboardModifierMappingSrc":30064771299,"HIDKeyboardModifierMappingDst":30064771298},{"HIDKeyboardModifierMappingSrc":30064771298,"HIDKeyboardModifierMappingDst":30064771299}]}`
 
-// mappingForType selects the hidutil modifier mapping JSON for a keyboard mode.
-//
-// The parameter t is the requested mode.
-// It returns the Windows mapping for win, otherwise the mac mapping.
+// mappingForType returns winMapping for "win" and macMapping otherwise.
 func mappingForType(t string) string {
 	if t == "win" {
 		return winMapping
@@ -21,10 +21,8 @@ func mappingForType(t string) string {
 	return macMapping
 }
 
-// applyMapping applies the selected mapping with hidutil under a five-second timeout.
-//
-// The parameter t is the requested keyboard mode.
-// It returns nil on success, or a command error including hidutil output.
+// applyMapping runs hidutil directly with a five-second timeout.
+// On failure, the returned error includes the command error and captured output.
 func applyMapping(t string) error {
 	mapping := mappingForType(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
