@@ -24,7 +24,7 @@ static NSMenuItem *toggle;
 /** Reflects the applied mapping and any error in the menu bar UI. */
 void updateMenu(const char *mode, const char *error) {
     NSString *type = [NSString stringWithUTF8String:mode];
-    status.button.title = [type isEqualToString:@"mac"] ? @"⌘ Mac" : @"⊞ Win";
+    status.button.title = [type isEqualToString:@"mac"] ? @"[⌘] Mac" : @"[⊞] Win";
     toggle.title =
         [type isEqualToString:@"mac"] ? @"Switch to Win keyboard" : @"Switch to Mac keyboard";
     NSString *message = [NSString stringWithUTF8String:error];
