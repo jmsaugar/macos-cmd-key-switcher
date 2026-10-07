@@ -40,6 +40,10 @@ type appDependencies struct {
 	showError              func(string)
 }
 
+// newApp creates an application with independent preferences and native dependencies.
+//
+// The parameter path is the config file location; config supplies the initial preferences.
+// It returns the initialized application.
 func newApp(path string, config Config) *App {
 	// Take ownership of preferences instead of sharing the caller's map.
 	preferences := make(map[string]string, len(config.KeyboardTypes))
@@ -54,13 +58,23 @@ func newApp(path string, config Config) *App {
 		scheduleAutomaticRetry: scheduleNativeRetry, cancelAutomaticRetry: cancelNativeRetry,
 		startMapping: a.launchMapping, signalMappingComplete: notifyMappingComplete,
 		unregisterStartup: nativeUnregisterStartup, removeUserData: a.removeUserData,
+		// Callback provides a successful recovery placeholder until main binds startup resources.
+		// It returns nil to simulate success.
 		recoverAfterCleanup: func() error { return nil }, // Bound to startup resources by main.
 		stopWatching:        stopNativeWatching, resumeWatching: resumeNativeWatching,
 		setMenuEnabled: nativeSetMenuEnabled, quit: stopNativeApp, showError: nativeShowError,
 	}
 	return a
 }
+
+// refreshMenu updates the menu with the applied mode and latest error.
+//
+// The receiver a is the application whose state is displayed.
 func (a *App) refreshMenu() { a.deps.updateMenu(a.config.Type, a.lastError) }
+
+// close cancels retries and discards pending mapping work.
+//
+// The receiver a is the application to stop scheduling work for.
 func (a *App) close() {
 	a.deps.cancelAutomaticRetry()
 	a.pendingMapping = nil

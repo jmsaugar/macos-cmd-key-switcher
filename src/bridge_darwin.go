@@ -20,14 +20,28 @@ import (
 // tests create independent App instances and do not replace it.
 var nativeApp *App
 
+// runNativeApp binds the application to native callbacks and runs the Cocoa event loop.
+//
+// The receiver a is the application receiving callbacks.
+// It returns after the native event loop stops.
 func runNativeApp(a *App) {
 	nativeApp = a
+	// Callback clears the active native application binding after the event loop exits.
 	defer func() { nativeApp = nil }()
 	C.runApp()
 }
-func scheduleNativeRetry(seconds int) { C.scheduleRetry(C.double(seconds)) }
-func cancelNativeRetry()              { C.cancelRetry() }
 
+// scheduleNativeRetry schedules a native one-shot retry timer.
+//
+// The parameter seconds is the delay before the retry callback.
+func scheduleNativeRetry(seconds int) { C.scheduleRetry(C.double(seconds)) }
+
+// cancelNativeRetry cancels the native retry timer.
+func cancelNativeRetry() { C.cancelRetry() }
+
+// nativeUpdateMenu passes the current mapping and error to the Cocoa menu.
+//
+// The parameter modeValue is the applied mode; errorValue is the error text or an empty string.
 func nativeUpdateMenu(modeValue, errorValue string) {
 	mode := C.CString(modeValue)
 	defer C.free(unsafe.Pointer(mode))
@@ -35,6 +49,9 @@ func nativeUpdateMenu(modeValue, errorValue string) {
 	defer C.free(unsafe.Pointer(message))
 	C.updateMenu(mode, message)
 }
+
+// connectedKeyboards reads and decodes the native keyboard registry snapshot.
+// It returns connected keyboards and nil, or nil and an enumeration or JSON decoding error.
 func connectedKeyboards() ([]Keyboard, error) {
 	raw := C.keyboardJSON()
 	if raw == nil {
@@ -48,6 +65,8 @@ func connectedKeyboards() ([]Keyboard, error) {
 	return devices, nil
 }
 
+// appTick forwards a native device notification to the active application on the main thread.
+//
 //export appTick
 func appTick() {
 	if nativeApp != nil {
@@ -55,6 +74,8 @@ func appTick() {
 	}
 }
 
+// appSwitch forwards a native manual switch action to the active application on the main thread.
+//
 //export appSwitch
 func appSwitch() {
 	if nativeApp != nil {
@@ -62,6 +83,8 @@ func appSwitch() {
 	}
 }
 
+// appWake forwards a native wake notification to the active application on the main thread.
+//
 //export appWake
 func appWake() {
 	if nativeApp != nil {
@@ -69,6 +92,8 @@ func appWake() {
 	}
 }
 
+// appRetry forwards a native retry timer callback to the active application on the main thread.
+//
 //export appRetry
 func appRetry() {
 	if nativeApp != nil {
@@ -76,6 +101,10 @@ func appRetry() {
 	}
 }
 
+// appMappingComplete receives a worker result and finishes its mapping on the main thread.
+//
+// Waits for the signaled result when an application is active.
+//
 //export appMappingComplete
 func appMappingComplete() {
 	if nativeApp != nil {
@@ -83,4 +112,5 @@ func appMappingComplete() {
 	}
 }
 
+// notifyMappingComplete dispatches a worker completion notification to the native main thread.
 func notifyMappingComplete() { C.notifyMappingComplete() }

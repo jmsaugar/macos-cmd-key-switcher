@@ -1,15 +1,31 @@
 #include "native.h"
 #import <Cocoa/Cocoa.h>
 #import <IOKit/IOKitLib.h>
+
+/**
+ * @brief Forwards a native device notification to the active application on the main
+ * thread.
+ */
 extern void appTick(void);
 static IONotificationPortRef notificationPort;
 static io_iterator_t addedDevices, removedDevices;
 static NSTimer *deviceUpdateTimer;
 static BOOL watchingDevices;
 
+/**
+ * @brief Marks device watching active so notifications can be installed.
+ */
 void beginKeyboardWatching(void) { watchingDevices = YES; }
 
 // One-shot debounce: no periodic keyboard polling.
+
+/**
+ * @brief Drains device notifications and debounces a keyboard refresh on the main
+ * run loop.
+ *
+ * @param context Unused callback data.
+ * @param iterator Services to release and rearm.
+ */
 static void deviceChanged(void *context, io_iterator_t iterator) {
     // Drain the iterator to release services and rearm notifications.
     io_service_t service;
@@ -26,6 +42,9 @@ static void deviceChanged(void *context, io_iterator_t iterator) {
     [deviceUpdateTimer invalidate];
     deviceUpdateTimer = [NSTimer timerWithTimeInterval:0.25
                                                repeats:NO
+                                                 // Callback clears the debounce timer and invokes
+                                                 // the Go device callback. Timer is the unused
+                                                 // firing timer.
                                                  block:^(NSTimer *timer) {
                                                      deviceUpdateTimer = nil;
                                                      appTick();
@@ -33,6 +52,10 @@ static void deviceChanged(void *context, io_iterator_t iterator) {
     [[NSRunLoop mainRunLoop] addTimer:deviceUpdateTimer forMode:NSRunLoopCommonModes];
 }
 
+/**
+ * @brief Stops watching and releases device timers, iterators, and
+ * notification ports.
+ */
 void endKeyboardWatching(void) {
     watchingDevices = NO;
     [deviceUpdateTimer invalidate];
@@ -53,6 +76,13 @@ void endKeyboardWatching(void) {
         notificationPort = NULL;
     }
 }
+
+/**
+ * @brief Installs device notifications when watching is active and not yet
+ * registered.
+ *
+ * @return YES if watching is inactive or notifications are ready; NO if setup fails.
+ */
 int ensureKeyboardWatching(void) {
     if (!watchingDevices)
         return YES;

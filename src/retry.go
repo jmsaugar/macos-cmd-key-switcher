@@ -4,6 +4,10 @@ package main
 // Delays are finite; successful operation leaves no timer running.
 type retryBudget struct{ attempts int }
 
+// next consumes one retry from the bounded exponential backoff budget.
+//
+// The receiver r is the budget to advance.
+// It returns the delay in seconds and true, or zero and false after three retries.
 func (r *retryBudget) next() (int, bool) {
 	if r.attempts >= 3 {
 		return 0, false

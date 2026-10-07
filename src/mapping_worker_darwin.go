@@ -18,6 +18,10 @@ type mappingResult struct {
 // These queue fields belong to the main thread. Only the result channel crosses
 // threads; workers never read application state or invoke Cocoa directly.
 
+// requestedType finds the latest requested mode, falling back to the applied mode.
+//
+// The receiver a supplies pending, active, and applied mapping state.
+// It returns the pending mode, active mode, or configured mode, in that order.
 func (a *App) requestedType() string {
 	if a.pendingMapping != nil {
 		return a.pendingMapping.mode
@@ -27,6 +31,13 @@ func (a *App) requestedType() string {
 	}
 	return a.config.Type
 }
+
+// requestMapping starts a mapping or replaces the pending request while a command is active.
+//
+// The parameter mode is the target; devices supplies preferences to remember; automatic enables retries on
+// failure; a owns the queue.
+//
+// Requests are ignored during shutdown.
 func (a *App) requestMapping(mode string, devices []Keyboard, automatic bool) {
 	if a.stopping {
 		return
@@ -41,10 +52,17 @@ func (a *App) requestMapping(mode string, devices []Keyboard, automatic bool) {
 	a.activeMapping = &request
 	a.deps.startMapping(request)
 }
+
+// launchMapping runs a copied mapping request in a worker and signals its result.
+//
+// The parameter request contains the mode, devices, origin, and signature; a supplies worker dependencies.
+//
+// Completion arrives asynchronously through mappingResults.
 func (a *App) launchMapping(request mappingRequest) {
 	execute := a.deps.executeMapping
 	signal := a.deps.signalMappingComplete
 	results := a.mappingResults
+	// Callback executes the copied request, sends its result, and signals completion.
 	go func() {
 		results <- mappingResult{request, execute(request.mode)}
 		signal()
@@ -52,6 +70,9 @@ func (a *App) launchMapping(request mappingRequest) {
 }
 
 // Called on the main thread after dispatching completion through Cocoa.
+// finishMapping handles a completed mapping on the main thread, including shutdown coordination.
+//
+// The parameter result contains the executed request and its error; a owns application state.
 func (a *App) finishMapping(result mappingResult) {
 	if a.stopping {
 		a.activeMapping = nil
@@ -69,6 +90,11 @@ func (a *App) finishMapping(result mappingResult) {
 	a.completeMapping(result)
 }
 
+// completeMapping records a mapping result, persists successful choices, and starts pending work.
+//
+// The parameter result contains the executed request and its error; a owns preferences and the queue.
+//
+// Errors are logged and displayed in the menu.
 func (a *App) completeMapping(result mappingResult) {
 	next := a.pendingMapping
 	a.activeMapping, a.pendingMapping = nil, nil

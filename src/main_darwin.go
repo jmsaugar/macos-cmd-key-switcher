@@ -10,6 +10,11 @@ import (
 	"runtime"
 )
 
+// main loads preferences, locks the instance, opens logging, and runs the menu bar application.
+//
+// Command-line arguments are validated through flag parsing.
+//
+// Startup failures terminate the process.
 func main() {
 	runtime.LockOSThread()
 	home, err := os.UserHomeDir()
@@ -36,10 +41,13 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	// Callback closes the current log file when main returns.
 	defer func() { logFile.Close() }()
 	log.SetOutput(io.MultiWriter(os.Stderr, logFile))
 	app := newApp(configPath, config)
 	app.logsPath = logsDirectory(home)
+	// Callback restores the instance lock and log destination after partial cleanup.
+	// It returns nil on success, or a lock restoration or log opening error.
 	app.deps.recoverAfterCleanup = func() error {
 		if err := lock.restore(); err != nil {
 			return err

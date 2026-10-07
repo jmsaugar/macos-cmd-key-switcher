@@ -1,6 +1,15 @@
 #include "native.h"
 #import <Cocoa/Cocoa.h>
+
+/**
+ * @brief Forwards the native close action to the active application on the main thread.
+ */
 extern void appClose(void);
+
+/**
+ * @brief Forwards confirmed native cleanup to the active application on the
+ * main thread.
+ */
 extern void appPrepareForUninstall(void);
 
 @interface SettingsController : NSObject <NSMenuDelegate>
@@ -8,13 +17,31 @@ extern void appPrepareForUninstall(void);
 @end
 
 @implementation SettingsController
+
+/**
+ * @brief Refreshes launch-at-login status before the settings menu opens.
+ *
+ * @param menu The unused menu being updated.
+ */
 - (void)menuNeedsUpdate:(NSMenu *)menu {
     refreshLoginStartupItem(self.startupItem);
 }
+
+/**
+ * @brief Toggles login startup and refreshes the associated menu item.
+ *
+ * @param sender The unused menu action source.
+ */
 - (void)toggleStartup:(id)sender {
     toggleLoginStartup();
     refreshLoginStartupItem(self.startupItem);
 }
+
+/**
+ * @brief Asks for confirmation before invoking Go cleanup.
+ *
+ * @param sender The unused menu action source.
+ */
 - (void)prepareForUninstall:(id)sender {
     NSAlert *alert = [NSAlert new];
     alert.messageText = @"Prepare for uninstall?";
@@ -29,11 +56,22 @@ extern void appPrepareForUninstall(void);
     if ([alert runModal] == NSAlertSecondButtonReturn)
         appPrepareForUninstall();
 }
+
+/**
+ * @brief Forwards the close menu action to Go.
+ *
+ * @param sender The unused menu action source.
+ */
 - (void)closeApp:(id)sender {
     appClose();
 }
 @end
 
+/**
+ * @brief Creates the settings menu and retains its controller for callbacks.
+ *
+ * @return The settings submenu managed by ARC.
+ */
 NSMenu *settingsMenu(void) {
     // NSMenu delegates and item targets are weak references.
     static SettingsController *controller;
@@ -60,6 +98,13 @@ NSMenu *settingsMenu(void) {
     return menu;
 }
 
+/**
+ * @brief Shows a modal warning alert on the main thread.
+ *
+ * @param message The UTF-8 error text.
+ *
+ * @note Returns after the alert is dismissed.
+ */
 void showAppError(const char *message) {
     NSAlert *alert = [NSAlert new];
     alert.messageText = @"CmdKeySwitcher";

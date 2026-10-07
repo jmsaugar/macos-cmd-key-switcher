@@ -2,6 +2,12 @@ package main
 
 import "testing"
 
+// TestRetryBudgetStops verifies that retry delays stop after three attempts and a fresh budget
+// resets the sequence.
+//
+// The parameter t runs the test and reports assertion failures.
+//
+// Failures are reported through t.
 func TestRetryBudgetStops(t *testing.T) {
 	var budget retryBudget
 	for _, want := range []int{2, 4, 8} {

@@ -8,10 +8,21 @@ import (
 	"time"
 )
 
+// TestMappingWorkerDoesNotBlockOrUpdateState verifies that mapping workers run asynchronously
+// without changing main-thread application state.
+//
+// The parameter t runs the test and reports assertion failures.
+//
+// Failures are reported through t.
 func TestMappingWorkerDoesNotBlockOrUpdateState(t *testing.T) {
 	a := testApp(t)
 	started, release, completed := make(chan struct{}), make(chan struct{}), make(chan struct{})
+	// Callback simulates mapping execution for this test.
+	//
+	// The requested mapping mode (unused by this stub).
+	// It returns nil to simulate success.
 	a.deps.executeMapping = func(string) error { close(started); <-release; return nil }
+	// Callback signals worker completion to the test.
 	a.deps.signalMappingComplete = func() { close(completed) }
 	a.deps.startMapping = a.launchMapping
 	a.requestMapping("win", nil, true)
@@ -38,11 +49,22 @@ func TestMappingWorkerDoesNotBlockOrUpdateState(t *testing.T) {
 	}
 }
 
+// TestPendingRequestsAreSerializedAndLatestWins verifies that mapping requests execute serially
+// and the latest pending request wins.
+//
+// The parameter t runs the test and reports assertion failures.
+//
+// Failures are reported through t.
 func TestPendingRequestsAreSerializedAndLatestWins(t *testing.T) {
 	a := testApp(t)
 	var launched []mappingRequest
+	// Callback captures or completes mapping requests for this test.
+	//
+	// The parameter request is the mapping request to capture or complete.
 	a.deps.startMapping = func(request mappingRequest) { launched = append(launched, request) }
 	devices := []Keyboard{{ID: "external", Vendor: 1234}}
+	// Callback supplies the keyboard snapshot for this test.
+	// It returns the test keyboard snapshot and nil.
 	a.deps.readKeyboards = func() ([]Keyboard, error) { return devices, nil }
 	a.updateDevices(devices) // running automatic win
 	a.switchKeyboard()       // pending manual mac
