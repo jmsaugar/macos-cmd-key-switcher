@@ -29,7 +29,7 @@ extern void appPrepareForUninstall(void);
     alert.informativeText =
         @"This disables launch at login, deletes saved keyboard preferences and "
         @"logs, and closes the app. The current keyboard mapping stays applied. "
-        @"Afterward, move CmdKeySwitcher from Applications to the Trash.";
+        @"Afterward, move Cmd Key Switcher from Applications to the Trash.";
     alert.alertStyle = NSAlertStyleWarning;
     [alert addButtonWithTitle:@"Cancel"];
     [alert addButtonWithTitle:@"Prepare for uninstall"];
@@ -74,7 +74,7 @@ NSMenu *settingsMenu(void) {
 /** Presents a modal warning with the supplied application error. */
 void showAppError(const char *message) {
     NSAlert *alert = [NSAlert new];
-    alert.messageText = @"CmdKeySwitcher";
+    alert.messageText = @"Cmd Key Switcher";
     alert.informativeText = [NSString stringWithUTF8String:message];
     alert.alertStyle = NSAlertStyleWarning;
     [alert addButtonWithTitle:@"OK"];

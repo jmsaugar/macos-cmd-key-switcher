@@ -1,4 +1,4 @@
-APP := build/CmdKeySwitcher.app
+APP := build/Cmd Key Switcher.app
 SIGN_IDENTITY ?= -
 GO := mise exec -- go
 GOFMT := mise exec -- gofmt

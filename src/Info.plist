@@ -2,7 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
 <key>CFBundleIdentifier</key><string>local.cmdkeyswitcher</string>
-<key>CFBundleName</key><string>CmdKeySwitcher</string>
+<key>CFBundleName</key><string>Cmd Key Switcher</string>
+<key>CFBundleDisplayName</key><string>Cmd Key Switcher</string>
 <key>CFBundleExecutable</key><string>cmd-key-switcher</string>
 <key>CFBundleIconFile</key><string>AppIcon.icns</string>
 <key>CFBundlePackageType</key><string>APPL</string>

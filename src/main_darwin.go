@@ -1,6 +1,6 @@
 //go:build darwin && cgo
 
-// CmdKeySwitcher selects a global keyboard modifier mapping from connected
+// Cmd Key Switcher selects a global keyboard modifier mapping from connected
 // keyboards and saved device preferences. Its menu supports manual switching,
 // optional launch at login, and cleanup before uninstalling.
 package main

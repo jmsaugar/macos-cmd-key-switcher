@@ -1,4 +1,4 @@
-# CmdKeySwitcher
+# Cmd Key Switcher
 
 A Go macOS menu bar app with a small native Cocoa/IOKit/ServiceManagement bridge. No external Go dependencies. The app requires macOS 13 or later. Building requires mise and Xcode Command Line Tools (`xcode-select --install`). `go.mod` declares Go 1.23 as the minimum language/toolchain version; development uses the exact Go version in `.config/mise.toml`.
 
@@ -23,7 +23,7 @@ To change tool versions, edit `.config/mise.toml`, run `mise lock --platform mac
 
 ## Install and use
 
-After `make build`, copy `build/CmdKeySwitcher.app` into `/Applications` or `~/Applications` using Finder, then double-click it. No installer or terminal command is required to run the built app. Opening it applies real keyboard mappings.
+After `make build`, copy `build/Cmd Key Switcher.app` into `/Applications` or `~/Applications` using Finder, then double-click it. No installer or terminal command is required to run the built app. Opening it applies real keyboard mappings.
 
 Close an already-running app before replacing its bundle. Enable login startup from the app's Settings submenu if desired.
 

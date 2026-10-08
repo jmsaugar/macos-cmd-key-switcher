@@ -14,7 +14,7 @@ void refreshLoginStartupItem(NSMenuItem *item) {
     else if (state == SMAppServiceStatusRequiresApproval) {
         item.state = NSControlStateValueMixed;
         item.title = @"Launch at login (approval required)";
-        item.toolTip = @"Allow CmdKeySwitcher in System Settings → General → Login Items.";
+        item.toolTip = @"Allow Cmd Key Switcher in System Settings → General → Login Items.";
     }
 }
 
@@ -34,7 +34,7 @@ char *unregisterLoginStartup(void) {
 static void requestApproval(void) {
     NSAlert *alert = [NSAlert new];
     alert.messageText = @"Launch at login needs approval";
-    alert.informativeText = @"Allow CmdKeySwitcher in System Settings → General → Login Items. "
+    alert.informativeText = @"Allow Cmd Key Switcher in System Settings → General → Login Items. "
                             @"You can also disable its startup registration here.";
     [alert addButtonWithTitle:@"Open System Settings"];
     [alert addButtonWithTitle:@"Turn off launch at login"];
