@@ -11,7 +11,7 @@ import (
 // TestInstanceLockSurvivesCleanupFailure verifies that restoring a lock after partial cleanup
 // still excludes another instance.
 func TestInstanceLockSurvivesCleanupFailure(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "config.json.lock")
+	path := filepath.Join(t.TempDir(), "instance.lock")
 	lock, err := acquireInstanceLock(path)
 	if err != nil {
 		t.Fatal(err)

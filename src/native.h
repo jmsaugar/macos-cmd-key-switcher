@@ -13,6 +13,28 @@
 void runApp(void);
 
 /**
+ * @brief Reads the configuration dictionary from the running bundle's UserDefaults domain.
+ * @return Allocated UTF-8 JSON, or "{}" if no configuration is stored; release with free().
+ *         Returns NULL if bundle metadata is missing or the stored value cannot be serialized.
+ */
+char *readPreferences(void);
+
+/**
+ * @brief Updates the configuration as one UserDefaults dictionary.
+ * @param json Non-NULL UTF-8 JSON object containing a configuration validated by Go.
+ * @return NULL on submission, or an allocated bridge error to release with free().
+ * @note macOS persists updates asynchronously; this does not acknowledge a disk write.
+ */
+char *writePreferences(const char *json);
+
+/**
+ * @brief Removes the running bundle's persistent UserDefaults domain.
+ * @return NULL on submission, or an allocated bridge error to release with free().
+ * @note The caller must stop further preference writes first. Disk persistence is asynchronous.
+ */
+char *clearPreferences(void);
+
+/**
  * @brief Enumerates keyboard registry metadata without opening input devices.
  *
  * @note Installs HID service notifications if watching is active and setup is still pending.
@@ -77,6 +99,7 @@ void showAppError(const char *message);
  * registration as success.
  *
  * @note Does not quit the main app or remove its configuration and logs.
+ *       Skips the request if the initial status is NotRegistered or NotFound.
  * @return NULL on success, or an allocated UTF-8 error message to release with free().
  */
 char *unregisterLoginStartup(void);

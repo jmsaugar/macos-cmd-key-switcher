@@ -4,17 +4,16 @@ package main
 
 import (
 	"errors"
-	"path/filepath"
 	"reflect"
 	"testing"
 )
 
 // testApp creates isolated state with synchronous mapping completion and mocked
-// native operations. Config writes use temporary storage; HID commands, login
+// native operations. Preferences stay in memory; HID commands, login
 // registration, and Cocoa UI are never invoked.
 func testApp(t *testing.T) *App {
 	t.Helper()
-	a := newApp(filepath.Join(t.TempDir(), "config.json"), defaults())
+	a := newApp(defaults(), &memoryPreferences{})
 	a.deps.readKeyboards = func() ([]Keyboard, error) { return []Keyboard{{ID: "external", Vendor: 1234}}, nil }
 	a.deps.cancelAutomaticRetry = func() {}
 	a.deps.scheduleAutomaticRetry = func(int) { t.Fatal("unexpected retry") }
@@ -94,13 +93,12 @@ func TestAutomaticFailureRetriesAndManualCancellation(t *testing.T) {
 // preferences and failures preserve them.
 func TestManualSwitchPersistsConnectedUnit(t *testing.T) {
 	a := testApp(t)
-	a.configPath = filepath.Join(t.TempDir(), "config.json")
 	keyboard := Keyboard{ID: "new", Vendor: 1234, ProductID: 5678, Serial: "unit-A"}
 	a.deps.readKeyboards = func() ([]Keyboard, error) { return []Keyboard{keyboard}, nil }
 	a.config.Type = "win"
 	a.deps.executeMapping = func(string) error { return nil }
 	a.switchKeyboard()
-	saved, err := loadConfig(a.configPath)
+	saved, err := loadConfig(a.preferences)
 	if err != nil {
 		t.Fatal(err)
 	}

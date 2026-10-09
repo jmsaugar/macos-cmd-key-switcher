@@ -81,9 +81,9 @@ func (a *App) finishMapping(result mappingResult) {
 	a.completeMapping(result)
 }
 
-// completeMapping updates the applied mode after command success and saves config.
+// completeMapping updates the applied mode after command success and submits preferences.
 // Only an unsuperseded request can teach device preferences or schedule a command
-// retry. A save failure is reported without rolling back the applied mapping.
+// retry. A submission failure is reported without rolling back the applied mapping.
 // If another request is pending, it starts after this result is processed.
 func (a *App) completeMapping(result mappingResult) {
 	next := a.pendingMapping
@@ -101,8 +101,8 @@ func (a *App) completeMapping(result mappingResult) {
 		if next == nil {
 			rememberKeyboards(&a.config, result.request.devices, result.request.mode)
 		}
-		if err := a.deps.saveConfig(a.configPath, a.config); err != nil {
-			a.lastError = "Mapping applied, but config could not be saved: " + err.Error()
+		if err := a.deps.saveConfig(a.config); err != nil {
+			a.lastError = "Mapping applied, but preferences could not be updated: " + err.Error()
 			log.Print(a.lastError)
 		} else {
 			a.lastError = ""

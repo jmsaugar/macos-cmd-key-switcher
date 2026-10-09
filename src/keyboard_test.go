@@ -1,9 +1,6 @@
 package main
 
-import (
-	"path/filepath"
-	"testing"
-)
+import "testing"
 
 // TestDetection verifies that device types and saved overrides select the expected mapping.
 func TestDetection(t *testing.T) {
@@ -60,11 +57,11 @@ func TestUnitOverridesAndModelFallback(t *testing.T) {
 	if c.KeyboardTypes[modelKey(a)] != "win" {
 		t.Fatal("unit selection changed model override")
 	}
-	path := filepath.Join(t.TempDir(), "config.json")
-	if err := saveConfig(path, c); err != nil {
+	preferences := &memoryPreferences{}
+	if err := saveConfig(preferences, c); err != nil {
 		t.Fatal(err)
 	}
-	loaded, err := loadConfig(path)
+	loaded, err := loadConfig(preferences)
 	if err != nil {
 		t.Fatal(err)
 	}

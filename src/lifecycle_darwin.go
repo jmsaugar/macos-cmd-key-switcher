@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 )
 
 // prepareForUninstall unregisters login startup, then begins cleanup.
@@ -69,10 +68,10 @@ func (a *App) finishShutdown() {
 	a.deps.quit()
 }
 
-// removeUserData removes the log directory, then the configuration directory.
-// It returns the first removal error with its path; earlier removals are not rolled back.
+// removeUserData removes logs and the lock directory, then clears UserDefaults.
+// Preferences stay intact if a file removal fails; earlier removals are not rolled back.
 func (a *App) removeUserData() error {
-	for _, path := range []string{a.logsPath, filepath.Dir(a.configPath)} {
+	for _, path := range []string{a.logsPath, a.dataPath} {
 		if path == "" {
 			continue
 		}
@@ -80,5 +79,5 @@ func (a *App) removeUserData() error {
 			return fmt.Errorf("%s: %w", path, err)
 		}
 	}
-	return nil
+	return a.preferences.clear()
 }

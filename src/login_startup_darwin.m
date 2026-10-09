@@ -21,13 +21,22 @@ void refreshLoginStartupItem(NSMenuItem *item) {
 /** Removes main-app startup registration, returning an allocated error message on failure. */
 char *unregisterLoginStartup(void) {
     SMAppService *service = SMAppService.mainAppService;
-    if (service.status == SMAppServiceStatusNotRegistered)
+    SMAppServiceStatus initialStatus = service.status;
+    // NotFound can occur before any registration; there is no known service to remove.
+    if (initialStatus == SMAppServiceStatusNotRegistered ||
+        initialStatus == SMAppServiceStatusNotFound)
         return NULL;
     NSError *error = nil;
     if ([service unregisterAndReturnError:&error] || error.code == kSMErrorJobNotFound)
         return NULL;
-    return strdup(
-        (error.localizedDescription ?: @"Could not unregister login startup.").UTF8String);
+    SMAppServiceStatus finalStatus = service.status;
+    NSString *message = [NSString
+        stringWithFormat:@"%@\nError: %@ (%ld). Login service status: %ld → %ld.\n"
+                         @"App: %@",
+                         error.localizedDescription ?: @"Could not unregister login startup.",
+                         error.domain ?: @"unknown", (long)error.code, (long)initialStatus,
+                         (long)finalStatus, NSBundle.mainBundle.bundlePath];
+    return strdup(message.UTF8String);
 }
 
 /** Offers System Settings or unregistration when launch at login requires approval. */

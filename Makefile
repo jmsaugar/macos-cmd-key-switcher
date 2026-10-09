@@ -5,7 +5,7 @@ GOFMT := mise exec -- gofmt
 CLANG_FORMAT := mise exec -- clang-format
 GO_FILES := $(wildcard src/*.go)
 NATIVE_SOURCES := $(wildcard src/*_darwin.m)
-NATIVE_FILES := $(NATIVE_SOURCES) src/native.h
+NATIVE_FILES := $(NATIVE_SOURCES) src/native.h $(wildcard src/testdata/*.m)
 
 .PHONY: setup build test format check analyze
 setup:
@@ -16,6 +16,7 @@ build:
 	$(GO) build -o "$(APP)/Contents/MacOS/cmd-key-switcher" ./src
 	cp src/Info.plist "$(APP)/Contents/Info.plist"
 	bash scripts/build-icon.sh src/assets/AppIcon.png "$(APP)/Contents/Resources/AppIcon.icns"
+	cp src/PrivacyInfo.xcprivacy "$(APP)/Contents/Resources/PrivacyInfo.xcprivacy"
 	codesign --force --sign "$(SIGN_IDENTITY)" "$(APP)"
 test:
 	$(GO) test ./...
@@ -29,7 +30,7 @@ check:
 	$(CLANG_FORMAT) --dry-run --Werror $(NATIVE_FILES)
 	$(GO) vet ./...
 	bash -n scripts/setup.sh scripts/build-icon.sh
-	plutil -lint src/Info.plist
+	plutil -lint src/Info.plist src/PrivacyInfo.xcprivacy
 	$(MAKE) analyze
 
 analyze:

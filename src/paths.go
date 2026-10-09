@@ -2,9 +2,14 @@ package main
 
 import "path/filepath"
 
-// configFilePath returns the app's config.json path under home/Library/Application Support.
-func configFilePath(home string) string {
-	return filepath.Join(home, "Library", "Application Support", "CmdKeySwitcher", "config.json")
+// appDataDirectory returns the directory containing the app's single-instance lock.
+func appDataDirectory(home string) string {
+	return filepath.Join(home, "Library", "Application Support", "CmdKeySwitcher")
+}
+
+// instanceLockPath returns the lock file used to exclude another running instance.
+func instanceLockPath(home string) string {
+	return filepath.Join(appDataDirectory(home), "instance.lock")
 }
 
 // logsDirectory returns the app's log directory under home/Library/Logs.

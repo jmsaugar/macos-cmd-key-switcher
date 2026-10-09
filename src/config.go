@@ -3,8 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
 )
 
 // Config stores the last applied mode and manually learned keyboard classifications.
@@ -22,52 +20,59 @@ func defaults() Config {
 	return Config{Type: "mac", KeyboardTypes: map[string]string{}}
 }
 
-// loadConfig reads and validates path, returning defaults if the file is absent.
+// preferencesStore transports a configuration snapshot to and from native storage.
+// JSON is used only across the bridge; the native backend stores a dictionary.
+type preferencesStore interface {
+	read() ([]byte, error)
+	write([]byte) error
+	clear() error
+}
+
+// loadConfig reads and validates preferences, returning defaults when none exist.
 // On error, the returned configuration may be partially populated and must not be used.
-func loadConfig(path string) (Config, error) {
+func loadConfig(preferences preferencesStore) (Config, error) {
 	c := defaults()
-	data, err := os.ReadFile(path)
-	if os.IsNotExist(err) {
-		return c, nil
-	}
+	data, err := preferences.read()
 	if err != nil {
 		return c, err
+	}
+	if len(data) == 0 {
+		return c, nil
 	}
 	if err = json.Unmarshal(data, &c); err != nil {
 		return c, err
 	}
+	if c.KeyboardTypes == nil {
+		c.KeyboardTypes = map[string]string{}
+	}
+	return c, validateConfig(c)
+}
+
+// validateConfig rejects unknown mapping names before preferences are used or updated.
+func validateConfig(c Config) error {
 	if c.Type != "mac" && c.Type != "win" {
-		return c, fmt.Errorf("invalid keyboard type %q", c.Type)
+		return fmt.Errorf("invalid keyboard type %q", c.Type)
 	}
 	for id, t := range c.KeyboardTypes {
 		if t != "mac" && t != "win" {
-			return c, fmt.Errorf("invalid keyboard override %s: %s", id, t)
+			return fmt.Errorf("invalid keyboard override %s: %s", id, t)
 		}
 	}
-	return c, nil
+	return nil
 }
 
-// saveConfig writes c as JSON to a temporary file in the destination directory
-// and atomically renames it over path. It returns the first error encountered.
-func saveConfig(path string, c Config) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+// saveConfig validates and submits one complete configuration to native storage.
+// Success acknowledges the update, not completion of macOS's asynchronous disk write.
+func saveConfig(preferences preferencesStore, c Config) error {
+	if err := validateConfig(c); err != nil {
 		return err
 	}
-	data, err := json.MarshalIndent(c, "", "  ")
+	if c.KeyboardTypes == nil {
+		c.KeyboardTypes = map[string]string{}
+	}
+	data, err := json.Marshal(c)
 	if err != nil {
 		return err
 	}
-	f, err := os.CreateTemp(filepath.Dir(path), "config-*.tmp")
-	if err != nil {
-		return err
-	}
-	defer os.Remove(f.Name())
-	if _, err = f.Write(data); err != nil {
-		f.Close()
-		return err
-	}
-	if err = f.Close(); err != nil {
-		return err
-	}
-	return os.Rename(f.Name(), path)
+	return preferences.write(data)
 }

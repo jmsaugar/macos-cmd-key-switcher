@@ -13,7 +13,7 @@ import (
 	"runtime"
 )
 
-// main loads preferences, acquires the instance lock, and runs the native UI.
+// main acquires the instance lock, loads preferences, and runs the native UI.
 // It locks the main goroutine to its OS thread before calling Cocoa.
 // Startup errors terminate the process.
 func main() {
@@ -28,16 +28,16 @@ func main() {
 	if flag.NArg() != 0 {
 		log.Fatal("unexpected command-line arguments")
 	}
-	configPath := configFilePath(home)
-	config, err := loadConfig(configPath)
-	if err != nil {
-		log.Fatal(err)
-	}
-	lock, err := acquireInstanceLock(configPath + ".lock")
+	lock, err := acquireInstanceLock(instanceLockPath(home))
 	if err != nil {
 		log.Fatal("Could not acquire the instance lock (another instance may be running): ", err)
 	}
 	defer lock.close()
+	preferences := nativePreferences{}
+	config, err := loadConfig(preferences)
+	if err != nil {
+		log.Fatal(err)
+	}
 	logFile, err := openAppLog(logsDirectory(home))
 	if err != nil {
 		log.Fatal(err)
@@ -45,7 +45,8 @@ func main() {
 	// Cleanup recovery can replace logFile; close the current file on return.
 	defer func() { logFile.Close() }()
 	log.SetOutput(io.MultiWriter(os.Stderr, logFile))
-	app := newApp(configPath, config)
+	app := newApp(config, preferences)
+	app.dataPath = appDataDirectory(home)
 	app.logsPath = logsDirectory(home)
 	// Partial cleanup can unlink files while their old descriptors remain open.
 	app.deps.recoverAfterCleanup = func() error {

@@ -6,8 +6,9 @@ package main
 // main OS thread; concurrent method calls are not safe.
 // Workers receive copied requests and return results through mappingResults.
 type App struct {
-	config                Config
-	configPath, lastError string
+	config      Config
+	preferences preferencesStore
+	lastError   string
 	// Device observations and automatic reapplication.
 	lastDevices, observedDevices string
 	forceRefresh                 bool
@@ -17,9 +18,9 @@ type App struct {
 	retries                       retryBudget
 	retryMode                     string
 	deps                          appDependencies
-	// Shutdown waits for the active command before exiting or deleting files.
+	// Shutdown waits for the active command before exiting or clearing preferences.
 	stopping, cleaningUp bool
-	logsPath             string
+	dataPath, logsPath   string
 }
 
 // appDependencies binds native operations and command execution per App instance.
@@ -27,7 +28,7 @@ type App struct {
 type appDependencies struct {
 	readKeyboards          func() ([]Keyboard, error)
 	executeMapping         func(string) error
-	saveConfig             func(string, Config) error
+	saveConfig             func(Config) error
 	updateMenu             func(string, string)
 	scheduleAutomaticRetry func(int)
 	cancelAutomaticRetry   func()
@@ -43,19 +44,19 @@ type appDependencies struct {
 	showError              func(string)
 }
 
-// newApp copies the initial preferences and binds production dependencies.
+// newApp copies the initial configuration and binds its store and production dependencies.
 // The caller must bind cleanup recovery to the startup resources before running the app.
-func newApp(path string, config Config) *App {
+func newApp(config Config, preferences preferencesStore) *App {
 	// Take ownership of preferences instead of sharing the caller's map.
-	preferences := make(map[string]string, len(config.KeyboardTypes))
+	keyboardTypes := make(map[string]string, len(config.KeyboardTypes))
 	for key, mode := range config.KeyboardTypes {
-		preferences[key] = mode
+		keyboardTypes[key] = mode
 	}
-	config.KeyboardTypes = preferences
-	a := &App{config: config, configPath: path, mappingResults: make(chan mappingResult, 1)}
+	config.KeyboardTypes = keyboardTypes
+	a := &App{config: config, preferences: preferences, mappingResults: make(chan mappingResult, 1)}
 	a.deps = appDependencies{
 		readKeyboards: connectedKeyboards, executeMapping: applyMapping,
-		saveConfig: saveConfig, updateMenu: nativeUpdateMenu,
+		saveConfig: func(c Config) error { return saveConfig(preferences, c) }, updateMenu: nativeUpdateMenu,
 		scheduleAutomaticRetry: scheduleNativeRetry, cancelAutomaticRetry: cancelNativeRetry,
 		startMapping: a.launchMapping, signalMappingComplete: notifyMappingComplete,
 		unregisterStartup: nativeUnregisterStartup, removeUserData: a.removeUserData,

@@ -11,12 +11,17 @@ import (
 )
 
 // TestCleanupWaitsForMappingAndDoesNotRecreateConfig verifies that cleanup waits for active
-// mappings and does not recreate deleted configuration.
+// mappings and does not recreate cleared preferences.
 func TestCleanupWaitsForMappingAndDoesNotRecreateConfig(t *testing.T) {
 	a := testApp(t)
 	home := t.TempDir()
-	a.configPath, a.logsPath = configFilePath(home), logsDirectory(home)
-	if err := saveConfig(a.configPath, a.config); err != nil {
+	a.dataPath, a.logsPath = appDataDirectory(home), logsDirectory(home)
+	lock, err := acquireInstanceLock(instanceLockPath(home))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lock.close()
+	if err := saveConfig(a.preferences, a.config); err != nil {
 		t.Fatal(err)
 	}
 	logFile, err := openAppLog(a.logsPath)
@@ -36,7 +41,7 @@ func TestCleanupWaitsForMappingAndDoesNotRecreateConfig(t *testing.T) {
 	if !reflect.DeepEqual(order, []string{"unregister"}) || a.pendingMapping != nil {
 		t.Fatalf("cleanup did not wait for the active command: %v", order)
 	}
-	a.deps.saveConfig = func(string, Config) error { t.Fatal("saved during cleanup"); return nil }
+	a.deps.saveConfig = func(Config) error { t.Fatal("saved during cleanup"); return nil }
 	a.keyboardChanged()
 	a.switchKeyboard()
 	a.retryAutomatic()
@@ -45,12 +50,12 @@ func TestCleanupWaitsForMappingAndDoesNotRecreateConfig(t *testing.T) {
 	if !reflect.DeepEqual(order, []string{"unregister", "remove", "quit"}) {
 		t.Fatalf("wrong cleanup order: %v", order)
 	}
-	for _, path := range []string{filepath.Dir(a.configPath), a.logsPath} {
+	for _, path := range []string{a.dataPath, a.logsPath} {
 		if _, err := os.Stat(path); !os.IsNotExist(err) {
 			t.Fatalf("data directory remains: %s (%v)", path, err)
 		}
 	}
-	config, err := loadConfig(a.configPath)
+	config, err := loadConfig(a.preferences)
 	if err != nil || config.Type != "mac" || len(config.KeyboardTypes) != 0 {
 		t.Fatalf("reopening did not load defaults: %+v, %v", config, err)
 	}
@@ -73,9 +78,50 @@ func TestClosePreservesDataAndStartupAndDrainsActiveSelection(t *testing.T) {
 		t.Fatal("closed before active command finished")
 	}
 	a.finishMapping(mappingResult{running, nil})
-	config, err := loadConfig(a.configPath)
+	config, err := loadConfig(a.preferences)
 	if !quit || err != nil || config.KeyboardTypes[unitKey(keyboard)] != "win" {
 		t.Fatalf("close lost the active selection: %+v, %v, quit=%v", config, err, quit)
+	}
+}
+
+// TestFileRemovalFailurePreservesPreferences verifies cleanup does not clear preferences
+// until the logs and lock directory have been removed successfully.
+func TestFileRemovalFailurePreservesPreferences(t *testing.T) {
+	a := testApp(t)
+	if err := saveConfig(a.preferences, Config{Type: "win"}); err != nil {
+		t.Fatal(err)
+	}
+	parent := filepath.Join(t.TempDir(), "not-a-directory")
+	if err := os.WriteFile(parent, []byte("blocked"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	a.logsPath = filepath.Join(parent, "logs")
+	if err := a.removeUserData(); err == nil {
+		t.Fatal("expected file removal to fail")
+	}
+	config, err := loadConfig(a.preferences)
+	if err != nil || config.Type != "win" {
+		t.Fatalf("file removal failure cleared preferences: %+v, %v", config, err)
+	}
+}
+
+// TestPreferenceClearFailureAllowsRetry verifies a bridge failure keeps cleanup retryable.
+func TestPreferenceClearFailureAllowsRetry(t *testing.T) {
+	a := testApp(t)
+	preferences := a.preferences.(*memoryPreferences)
+	preferences.clearErr = errors.New("preferences unavailable")
+	a.deps.removeUserData = a.removeUserData
+	a.deps.showError = func(string) {}
+	quit := false
+	a.deps.quit = func() { quit = true }
+	a.prepareForUninstall()
+	if quit || a.stopping || a.lastError == "" {
+		t.Fatal("preference clear failure did not restore operation")
+	}
+	preferences.clearErr = nil
+	a.prepareForUninstall()
+	if !quit {
+		t.Fatal("preference cleanup retry did not exit")
 	}
 }
 
