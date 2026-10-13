@@ -16,6 +16,7 @@ build:
 	$(GO) build -o "$(APP)/Contents/MacOS/cmd-key-switcher" ./src
 	cp src/Info.plist "$(APP)/Contents/Info.plist"
 	bash scripts/build-icon.sh src/assets/AppIcon.png "$(APP)/Contents/Resources/AppIcon.icns"
+	cp src/assets/cmd.png src/assets/win.png "$(APP)/Contents/Resources/"
 	cp src/PrivacyInfo.xcprivacy "$(APP)/Contents/Resources/PrivacyInfo.xcprivacy"
 	codesign --force --sign "$(SIGN_IDENTITY)" "$(APP)"
 test:

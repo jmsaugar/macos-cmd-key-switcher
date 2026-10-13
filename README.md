@@ -4,7 +4,7 @@ A Go macOS menu bar app with a small native Cocoa/IOKit/ServiceManagement bridge
 
 Application source and tests live in `src/`, including the Go code, Objective-C bridge, app bundle metadata in `src/Info.plist`, and the UserDefaults API declaration in `src/PrivacyInfo.xcprivacy`. `go.mod` is at the repository root; build and tooling commands run from that root.
 
-The app icon source is `src/assets/AppIcon.png`. `make build` uses macOS's `sips` and `iconutil` through `scripts/build-icon.sh` to generate standard and Retina icon sizes and package them as `Contents/Resources/AppIcon.icns` before signing the bundle. `src/Info.plist` references it through Apple's [CFBundleIconFile](https://developer.apple.com/documentation/BundleResources/Information-Property-List/CFBundleIconFile) key. Replace the source with a square PNG of at least 1024 × 1024 pixels and rebuild to change the Finder/Application icon. The menu bar shows the current `mac`/`win` mode as text.
+The app icon source is `src/assets/AppIcon.png`. `make build` uses macOS's `sips` and `iconutil` through `scripts/build-icon.sh` to generate standard and Retina icon sizes and package them as `Contents/Resources/AppIcon.icns` before signing the bundle. `src/Info.plist` references it through Apple's [CFBundleIconFile](https://developer.apple.com/documentation/BundleResources/Information-Property-List/CFBundleIconFile) key. Replace the source with a square PNG of at least 1024 × 1024 pixels and rebuild to change the Finder/Application icon. The menu bar uses `src/assets/cmd.png` for `mac` mode and `src/assets/win.png` for `win` mode, alongside the mode label. These images are copied into `Contents/Resources` and rendered as template images, fitted within 12 × 12 points while preserving their proportions.
 
 Development tools are pinned in `.config/mise.toml` and `.config/mise.lock` for Apple Silicon and Intel Macs. The formatter uses mise's Conda backend, which installs its supporting packages in mise-managed directories; this is development tooling, not an application dependency. Apple Clang and the macOS SDK come separately from Command Line Tools or Xcode and are not installed or pinned by mise. Builds use Apple Clang from the selected developer tools, not the formatter's LLVM libraries.
 
@@ -27,24 +27,24 @@ After `make build`, copy `build/Cmd Key Switcher.app` into `/Applications` or `~
 
 Close an already-running app before replacing its bundle. Enable login startup from the app's Settings submenu if desired.
 
-The menu bar shows `[⌘] Mac` or `[⊞] Win`. The dropdown has two entries:
+The menu bar shows the command-key icon followed by `Mac`, or the Windows-key icon followed by `Win`. The dropdown has two entries:
 
 ```text
 Switch to Win keyboard  (or Switch to Mac keyboard)
 Settings ▸
     ✓ Launch at login
     ────────────────
-      Prepare for uninstall…
+      Reset app config and close...
       Close app
 ```
 
 - **Launch at login** controls `SMAppService.mainAppService` registration. A fresh installation starts with login startup disabled. The submenu reads the macOS status each time it opens; this preference is managed by macOS separately from keyboard preferences, and normal launches never register automatically. A mixed checkmark and “approval required” label indicate that registration needs approval. Clicking it offers to open Login Items in System Settings or turn registration off. Disabling startup leaves the app running. Startup runs at user login, not before login, and does not supervise or automatically restart the app after it exits.
 - **Close app** exits without disabling login startup or deleting preferences/logs. It waits for an active HID command to finish and preserves its result; pending commands are discarded. Applied mappings stay in effect.
-- **Prepare for uninstall…** asks for confirmation, unregisters any known login-startup registration, waits for an active HID command, deletes the app's logs and lock directory, clears its UserDefaults domain, then quits. It does not delete the app bundle or reset applied keyboard mappings. If an attempted startup unregistration fails, data is kept. Preferences are cleared only after file removal succeeds. If cleanup fails, the app reports the error and permits another attempt after restoring its instance lock and logging; some files may have already been removed. If those resources cannot be restored, it reports that failure and closes instead. UserDefaults clearing is submitted to macOS without waiting for disk persistence.
+- **Reset app config and close...** asks for confirmation, unregisters any known login-startup registration, waits for an active HID command, deletes the app's logs and lock directory, clears its UserDefaults domain, then closes. It does not delete the app bundle or reset applied keyboard mappings. If an attempted startup unregistration fails, data is kept. Preferences are cleared only after file removal succeeds. If cleanup fails, the app reports the error and permits another attempt after restoring its instance lock and logging; some files may have already been removed. If those resources cannot be restored, it reports that failure and closes instead. UserDefaults clearing is submitted to macOS without waiting for disk persistence.
 
-To uninstall, choose **Settings → Prepare for uninstall…**, then move the app from Applications to the Trash. Launching the app after cleanup starts with default configuration and an empty `keyboard_types` map, detects connected keyboards, creates preferences and log/lock files, and leaves login startup disabled until you explicitly enable it again.
+To uninstall, choose **Settings → Reset app config and close...**, then move the app from Applications to the Trash. Launching the app after cleanup starts with default configuration and an empty `keyboard_types` map, detects connected keyboards, creates preferences and log/lock files, and leaves login startup disabled until you explicitly enable it again.
 
-Deleting the bundle directly does not run the app's cleanup: preferences, logs, and the lock file remain, and an already-running process is not necessarily stopped. Once the bundle is actually deleted, macOS cannot launch that copy at login, but its login entry may remain visible temporarily while macOS performs maintenance. Apple describes this delayed removal in its [ServiceManagement sample documentation](https://developer.apple.com/documentation/ServiceManagement/updating-your-app-package-installer-to-use-the-new-service-management-api). Neither direct deletion nor preparing for uninstall resets the applied keyboard mapping.
+Deleting the bundle directly does not run the app's cleanup: preferences, logs, and the lock file remain, and an already-running process is not necessarily stopped. Once the bundle is actually deleted, macOS cannot launch that copy at login, but its login entry may remain visible temporarily while macOS performs maintenance. Apple describes this delayed removal in its [ServiceManagement sample documentation](https://developer.apple.com/documentation/ServiceManagement/updating-your-app-package-installer-to-use-the-new-service-management-api). Neither direct deletion nor resetting the app config resets the applied keyboard mapping.
 
 ## Detection and switching
 
@@ -146,6 +146,7 @@ The app uses one Go package with a small native bridge. Responsibilities are sep
 | `Info.plist`, `.clang-format` | Bundle metadata and native formatting rules |
 | `PrivacyInfo.xcprivacy` | Declaration of the app's UserDefaults API usage |
 | `assets/AppIcon.png` | Source image for the app bundle's Finder icon |
+| `assets/cmd.png`, `assets/win.png` | Template images for the current mode in the menu bar |
 
 Application state and native callbacks run on the main OS thread; HID command execution runs in a Go worker. Production native sources compile into the app executable; native test harnesses compile into separate test executables.
 

@@ -22,17 +22,17 @@ extern void appPrepareForUninstall(void);
     refreshLoginStartupItem(self.startupItem);
 }
 
-/** Confirms the cleanup action before asking Go to prepare the app for removal. */
+/** Confirms the reset action before asking Go to clean up and close. */
 - (void)prepareForUninstall:(id)sender {
     NSAlert *alert = [NSAlert new];
-    alert.messageText = @"Prepare for uninstall?";
+    alert.messageText = @"Reset app config and close?";
     alert.informativeText =
         @"This disables launch at login, deletes saved keyboard preferences and "
         @"logs, and closes the app. The current keyboard mapping stays applied. "
-        @"Afterward, move Cmd Key Switcher from Applications to the Trash.";
+        @"Opening the app again starts with default preferences. The app itself is not deleted.";
     alert.alertStyle = NSAlertStyleWarning;
     [alert addButtonWithTitle:@"Cancel"];
-    [alert addButtonWithTitle:@"Prepare for uninstall"];
+    [alert addButtonWithTitle:@"Reset and close"];
     [NSApp activateIgnoringOtherApps:YES];
     if ([alert runModal] == NSAlertSecondButtonReturn)
         appPrepareForUninstall();
@@ -58,7 +58,7 @@ NSMenu *settingsMenu(void) {
     controller.startupItem.target = controller;
     [menu addItem:controller.startupItem];
     [menu addItem:[NSMenuItem separatorItem]];
-    NSMenuItem *cleanup = [[NSMenuItem alloc] initWithTitle:@"Prepare for uninstall…"
+    NSMenuItem *cleanup = [[NSMenuItem alloc] initWithTitle:@"Reset app config and close..."
                                                      action:@selector(prepareForUninstall:)
                                               keyEquivalent:@""];
     cleanup.target = controller;
